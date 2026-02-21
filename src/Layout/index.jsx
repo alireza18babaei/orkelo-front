@@ -89,7 +89,7 @@ const Layout = () => {
 
       {/*-- Footer Section starts--*/}
       <Footer />
-      <Customizer />
+      <Customizer showLauncher={false} />
       {/*-- Footer Section ends--*/}
     </div>
   );

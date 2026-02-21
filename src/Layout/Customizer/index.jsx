@@ -29,7 +29,7 @@ const setBootstrapThemeVars = ({primaryRgb, secondaryRgb}) => {
     }
 };
 
-const Customizer = () => {
+const Customizer = ({ showLauncher = true }) => {
     const [sidebarOption, setSidebarOption] = useState(getLocalStorageItem("sidebar-option", "vertical-sidebar"));
     const [layoutOption, setLayoutOption] = useState(getLocalStorageItem("layout-option", "ltr"));
     const [colorOption, setColorOption] = useState(getLocalStorageItem("color-option", "default"));
@@ -149,15 +149,17 @@ const Customizer = () => {
     };
     return (
         <>
-            <button
-                className="customizer-btn"
-                type="button"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#customizerOptions"
-                aria-controls="customizerOptions"
-            >
-                <i className="ti ti-settings-2"></i>
-            </button>
+            {showLauncher ? (
+                <button
+                    className="customizer-btn"
+                    type="button"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#customizerOptions"
+                    aria-controls="customizerOptions"
+                >
+                    <i className="ti ti-settings-2"></i>
+                </button>
+            ) : null}
             <div
                 className="offcanvas offcanvas-end app-customizer"
                 data-bs-scroll="true" tabIndex="-1"

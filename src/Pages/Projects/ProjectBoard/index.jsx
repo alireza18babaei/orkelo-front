@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Col, Container, Row } from "reactstrap";
+import { Container } from "reactstrap";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -17,14 +17,28 @@ import {
   removeTaskFromColumn,
   updateProjectColumnThunk,
 } from "../../../store/projects/projectColumnsSlice";
+import {
+  addProjectMemberThunk,
+  deleteProjectMemberThunk,
+  getProjectMembersThunk,
+} from "../../../store/projects/projectMembersSlice";
+import { getCompanyMembersThunk } from "../../../store/company/companyMembersSlice";
 
 import ProjectDetailsModal from "../../../Components/projectDetailModal";
 import TaskDetailModal from "../../../Components/taskDetailModal";
-import { alertConfirm, alertSuccess, toastError, toastInfo } from "../../../utils/sweetAlert";
+import {
+  alertConfirm,
+  alertSuccess,
+  toastError,
+  toastInfo,
+  toastSuccess,
+} from "../../../utils/sweetAlert";
 import ProjectBoardHeader from "./partials/ProjectBoardHeader";
 import ProjectEditModal from "./partials/ProjectEditModal";
 import ProjectBoardColumns from "./partials/ProjectBoardColumns";
 import ProjectColumnModal from "./partials/ProjectColumnModal";
+import ProjectMembers from "./partials/ProjectMembers";
+import ProjectAddMemberModal from "./partials/ProjectAddMemberModal";
 
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -51,6 +65,7 @@ const ProjectBoard = () => {
   const [taskInfoOpen, setTaskInfoOpen] = useState(false);
   const [activeTask, setActiveTask] = useState(null);
   const [removedTaskIds, setRemovedTaskIds] = useState([]);
+  const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
 
   const { data, error, loading } = useSelector((s) => s.projectDetails);
   const pageError = routeSwitched ? null : error;
@@ -61,6 +76,18 @@ const ProjectBoard = () => {
     projectId: columnsProjectId,
     tasksLoadingByColumnId,
   } = useSelector((s) => s.projectColumns);
+  const {
+    items: projectMembers,
+    projectId: membersProjectId,
+    status: membersStatus,
+    addingByEmail: projectMemberAddingByEmail,
+    removingByMemberId: projectMemberRemovingByMemberId,
+  } = useSelector((s) => s.projectMembers);
+  const {
+    items: companyMembers,
+    status: companyMembersStatus,
+    error: companyMembersError,
+  } = useSelector((s) => s.companyMembers || {});
 
   const fromList = useMemo(() => {
     const numId = Number(id);
@@ -79,7 +106,16 @@ const ProjectBoard = () => {
     String(detailsProjectId) === String(id);
 
   const project = (detailsMatch ? projectFromDetails : null) || fromList;
-  const members = detailsMatch ? detailsPayload?.members || [] : [];
+  const detailsMembers = detailsMatch ? detailsPayload?.members || [] : [];
+  const membersFromSlice =
+    membersProjectId && String(membersProjectId) === String(id)
+      ? projectMembers
+      : [];
+  const members = membersFromSlice.length ? membersFromSlice : detailsMembers;
+  const membersLoading =
+    membersStatus === "loading" &&
+    membersProjectId != null &&
+    String(membersProjectId) === String(id);
   const columnsFromSlice =
     columnsProjectId && String(columnsProjectId) === String(id)
       ? projectColumns
@@ -149,6 +185,7 @@ const ProjectBoard = () => {
     if (!id) return;
     dispatch(getProjectDetailsThunk(id));
     dispatch(getProjectColumnsThunk(id));
+    dispatch(getProjectMembersThunk(id));
   }, [dispatch, id]);
 
   useEffect(() => {
@@ -159,6 +196,7 @@ const ProjectBoard = () => {
     setTaskInfoOpen(false);
     setActiveTask(null);
     setRemovedTaskIds([]);
+    setAddMemberModalOpen(false);
   }, [id]);
 
   const columnIdsKey = useMemo(() => {
@@ -481,6 +519,73 @@ const ProjectBoard = () => {
     }
   };
 
+  const openAddMemberModal = () => {
+    setAddMemberModalOpen(true);
+    dispatch(getCompanyMembersThunk());
+  };
+
+  const handleReloadCompanyMembers = () => {
+    dispatch(getCompanyMembersThunk());
+  };
+
+  const handleAddProjectMember = async (companyMember) => {
+    const email = String(companyMember?.email ?? "").trim();
+    if (!id || !email) {
+      toastError("User email not found");
+      return;
+    }
+
+    try {
+      await dispatch(
+        addProjectMemberThunk({
+          projectId: id,
+          email,
+        }),
+      ).unwrap();
+      toastSuccess("Member added");
+      dispatch(getProjectMembersThunk(id));
+    } catch (err) {
+      const msg =
+        err?.message ||
+        err?.data?.message ||
+        "Add member failed";
+      toastError(msg);
+    }
+  };
+
+  const handleDeleteProjectMember = async (member) => {
+    const memberId = String(member?.removeId ?? "");
+    if (!id || !memberId) {
+      toastError("Member id not found");
+      return;
+    }
+
+    const { isConfirmed } = await alertConfirm({
+      title: "Are you sure?",
+      text: "Member will be removed from project.",
+      confirmText: "Remove",
+      cancelText: "Cancel",
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await dispatch(
+        deleteProjectMemberThunk({
+          projectId: id,
+          memberId,
+        }),
+      ).unwrap();
+      toastSuccess("Member removed");
+      dispatch(getProjectMembersThunk(id));
+    } catch (err) {
+      const msg =
+        err?.message ||
+        err?.data?.message ||
+        "Remove member failed";
+      toastError(msg);
+    }
+  };
+
   const busy =
     !project &&
     !pageError &&
@@ -502,9 +607,9 @@ const ProjectBoard = () => {
   if (!project) return <div className="p-3">Project not found!</div>;
 
   return (
-    <section className="d-flex">
-      <div className="flex-grow-1">
-        <Container fluid>
+    <section className="project-board-layout">
+      <div className="project-board-main">
+        <Container fluid className="project-board-main__container">
           <ProjectBoardHeader
             projectName={project.name}
             onDelete={handleProjectDelete}
@@ -522,6 +627,32 @@ const ProjectBoard = () => {
             >
               Add Column
             </button>
+          </ProjectBoardHeader>
+
+          <div className="project-board-main__content">
+            <div className="project-board-main__scroll app-scroll">
+              <ProjectBoardColumns
+                columns={columns}
+                status={columnsStatus}
+                tasksLoading={tasksLoading}
+                onEditColumn={openEditColumnModal}
+                onDeleteColumn={handleColumnDelete}
+                onAddTask={handleAddTask}
+                onTaskClick={handleTaskClick}
+              />
+            </div>
+          </div>
+        </Container>
+      </div>
+
+      <ProjectMembers
+        members={members}
+        loading={membersLoading}
+        onAddMember={openAddMemberModal}
+        onDeleteMember={handleDeleteProjectMember}
+        removingByMemberId={projectMemberRemovingByMemberId}
+      />
+
       <ProjectEditModal
         isOpen={editModal}
         onClose={closeEditModal}
@@ -543,76 +674,72 @@ const ProjectBoard = () => {
           setValue("image", null, { shouldValidate: true, shouldDirty: true })
         }
       />
-            <ProjectDetailsModal
-              infoOpen={infoOpen}
-              project={project}
-              setInfoOpen={setInfoOpen}
-              members={members}
-              columns={columns}
-            />
-            <TaskDetailModal
-              isOpen={taskInfoOpen}
-              onClose={() => setTaskInfoOpen(false)}
-              task={activeTask}
-              projectId={
-                activeTask?.project_id ??
-                activeTask?.projectId ??
-                activeTask?.project?.id ??
-                project?.id ??
-                id
-              }
-              onDeleted={({ taskId, columnId }) => {
-                if (taskId && columnId) {
-                  dispatch(removeTaskFromColumn({ taskId, columnId }));
-                  setRemovedTaskIds((prev) =>
-                    prev.includes(taskId) ? prev : [...prev, taskId],
-                  );
-                }
-                if (project?.id) {
-                  dispatch(getProjectColumnsThunk(project.id));
-                }
-              }}
-            />
-            <ProjectColumnModal
-              isOpen={columnModalOpen}
-              onClose={closeColumnModal}
-              onSubmit={handleColumnSubmit(onColumnSubmit)}
-              isSubmitting={isColumnSubmitting}
-              errors={columnErrors}
-              titleField={titleField}
-              titleRef={titleRef}
-              colorField={colorField}
-              colorRef={colorRef}
-              iconField={iconField}
-              iconRef={iconRef}
-              iconValue={currentColumnIcon}
-              onPickIcon={(value) =>
-                setColumnValue("icon", value, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-              isEdit={!!editingColumn}
-            />
-          </ProjectBoardHeader>
 
-          <Row>
-            <Col xs={12}>
-              <div className="app-scroll">
-                <ProjectBoardColumns
-                  columns={columns}
-                  status={columnsStatus}
-                  tasksLoading={tasksLoading}
-                  onEditColumn={openEditColumnModal}
-                  onDeleteColumn={handleColumnDelete}
-                  onAddTask={handleAddTask}
-                  onTaskClick={handleTaskClick}
-                />
-              </div>
-            </Col>
-          </Row>
-        </Container>
-      </div>
+      <ProjectDetailsModal
+        infoOpen={infoOpen}
+        project={project}
+        setInfoOpen={setInfoOpen}
+        members={members}
+        columns={columns}
+      />
+
+      <TaskDetailModal
+        isOpen={taskInfoOpen}
+        onClose={() => setTaskInfoOpen(false)}
+        task={activeTask}
+        projectId={
+          activeTask?.project_id ??
+          activeTask?.projectId ??
+          activeTask?.project?.id ??
+          project?.id ??
+          id
+        }
+        onDeleted={({ taskId, columnId }) => {
+          if (taskId && columnId) {
+            dispatch(removeTaskFromColumn({ taskId, columnId }));
+            setRemovedTaskIds((prev) =>
+              prev.includes(taskId) ? prev : [...prev, taskId],
+            );
+          }
+          if (project?.id) {
+            dispatch(getProjectColumnsThunk(project.id));
+          }
+        }}
+      />
+
+      <ProjectColumnModal
+        isOpen={columnModalOpen}
+        onClose={closeColumnModal}
+        onSubmit={handleColumnSubmit(onColumnSubmit)}
+        isSubmitting={isColumnSubmitting}
+        errors={columnErrors}
+        titleField={titleField}
+        titleRef={titleRef}
+        colorField={colorField}
+        colorRef={colorRef}
+        iconField={iconField}
+        iconRef={iconRef}
+        iconValue={currentColumnIcon}
+        onPickIcon={(value) =>
+          setColumnValue("icon", value, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
+        isEdit={!!editingColumn}
+      />
+
+      <ProjectAddMemberModal
+        isOpen={addMemberModalOpen}
+        onClose={() => setAddMemberModalOpen(false)}
+        companyMembers={companyMembers}
+        companyStatus={companyMembersStatus}
+        companyError={companyMembersError}
+        onReloadCompanyMembers={handleReloadCompanyMembers}
+        onAddMember={handleAddProjectMember}
+        projectMembers={members}
+        addingByEmail={projectMemberAddingByEmail}
+      />
     </section>
   );
 };

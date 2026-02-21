@@ -1,10 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   weatherData,
   initialCartItems,
   initialnotifications,
-  linkData,
-  headerLanguages,
   searchData,
 } from "../../Data/HeaderMenuData.js";
 import { Link } from "react-router-dom";
@@ -12,11 +10,44 @@ import { Button, Card, CardBody } from "reactstrap";
 import HeaderMode from "../../Layout/Header/HeaderMode.jsx";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutThunk } from "../../store/auth/authSlice.js";
+import {
+  addCompanyMemberThunk,
+  deleteCompanyMemberThunk,
+  getCompanyMembersThunk,
+} from "../../store/company/companyMembersSlice.js";
+import ActionDropdown from "../../Components/ActionDropdown/index.jsx";
+import CompanyMembersModal from "./CompanyMembersModal.jsx";
+import AddCompanyMemberModal from "./AddCompanyMemberModal.jsx";
+import { alertConfirm, toastError, toastSuccess } from "../../utils/sweetAlert.js";
+import { resolveUserAvatarUrl } from "../../utils/mediaUrl.js";
 
 const HeaderMenu = () => {
   const dispatch = useDispatch();
   const [cartItems, setCartItems] = useState(initialCartItems);
   const user = useSelector(s=> s.auth.user);
+  const userAvatar = useMemo(() => {
+    const raw =
+      user?.avatar ??
+      user?.avatar_url ??
+      user?.image ??
+      user?.image_url ??
+      user?.profile_photo_url ??
+      "";
+    return resolveUserAvatarUrl(raw);
+  }, [user]);
+  const {
+    items: companyMembers,
+    status: companyMembersStatus,
+    error: companyMembersError,
+    addLoading: companyMemberAddLoading,
+    removingByUserId: companyMembersRemovingByUserId,
+  } = useSelector((s) => s.companyMembers || {});
+
+  const companyMenuRef = useRef(null);
+  const [companyActionOpen, setCompanyActionOpen] = useState(false);
+  const [companyMembersModalOpen, setCompanyMembersModalOpen] = useState(false);
+  const [companyAddMemberModalOpen, setCompanyAddMemberModalOpen] =
+    useState(false);
 
 
   const handleRemoveItem = (id) => {
@@ -53,6 +84,68 @@ const HeaderMenu = () => {
     const regex = new RegExp(`(${highlight})`, "gi");
     return text.replace(regex, `<span class="highlight-searchtext">$1</span>`);
   };
+
+  const openCompanyMembersModal = () => {
+    setCompanyMembersModalOpen(true);
+    dispatch(getCompanyMembersThunk());
+  };
+
+  const handleReloadCompanyMembers = () => {
+    dispatch(getCompanyMembersThunk());
+  };
+
+  const openCompanyAddMemberModal = () => {
+    setCompanyAddMemberModalOpen(true);
+  };
+
+  const handleSubmitAddCompanyMember = async (email) => {
+    try {
+      await dispatch(addCompanyMemberThunk({ email })).unwrap();
+      toastSuccess("Member added");
+      setCompanyAddMemberModalOpen(false);
+      dispatch(getCompanyMembersThunk());
+    } catch (err) {
+      toastError(err?.message || "Failed to add member");
+    }
+  };
+
+  const handleDeleteCompanyMember = async (member) => {
+    const userId = String(member?.userId ?? "");
+    if (!userId) {
+      toastError("User id not found");
+      return;
+    }
+
+    const { isConfirmed } = await alertConfirm({
+      title: "Are you sure?",
+      text: "Member will be removed from company.",
+      confirmText: "Remove",
+      cancelText: "Cancel",
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await dispatch(deleteCompanyMemberThunk({ userId })).unwrap();
+      toastSuccess("Member removed");
+    } catch (err) {
+      toastError(err?.message || "Failed to remove member");
+    }
+  };
+
+  const companyMenuActions = [
+    {
+      key: "company-members",
+      label: "Company Members",
+      icon: "ti-users",
+      onClick: openCompanyMembersModal,
+    },
+    {
+      key: "add-member",
+      label: "Add Member",
+      icon: "ti-user-plus",
+      onClick: openCompanyAddMemberModal,
+    },
+  ];
 
   return (
     <>
@@ -151,6 +244,45 @@ const HeaderMenu = () => {
           </div>
         </li>
 
+        <li className="header-theme-settings">
+          <button
+            type="button"
+            className="btn p-0 border-0 bg-transparent d-flex align-items-center head-icon"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#customizerOptions"
+            aria-controls="customizerOptions"
+            aria-label="Theme settings"
+          >
+            <i className="ti ti-settings-2"></i>
+          </button>
+        </li>
+
+        <li className="header-company">
+          <div ref={companyMenuRef} className="position-relative">
+            <button
+              type="button"
+              className="btn company-menu-trigger"
+              onClick={() => setCompanyActionOpen((v) => !v)}
+              aria-label="Company actions"
+            >
+              <i className="ph ph-buildings"></i>
+              <span className="company-menu-trigger__text">Company</span>
+              <i
+                className={`ph ${
+                  companyActionOpen ? "ph-caret-up" : "ph-caret-down"
+                } company-menu-trigger__caret`}
+              ></i>
+            </button>
+
+            <ActionDropdown
+              open={companyActionOpen}
+              onToggle={setCompanyActionOpen}
+              rootRef={companyMenuRef}
+              actions={companyMenuActions}
+            />
+          </div>
+        </li>
+
         <li className="header-profile">
           <a
             href="#"
@@ -161,7 +293,7 @@ const HeaderMenu = () => {
             aria-controls="profilecanvasRight"
           >
             <img
-              src="/assets/images/avtar/woman.jpg"
+              src={userAvatar || "/assets/images/avtar/woman.jpg"}
               alt="avtar"
               className="b-r-10 h-35 w-35"
             />
@@ -178,9 +310,8 @@ const HeaderMenu = () => {
                 <li>
                   <div className="d-flex-center">
                     <span className="h-45 w-45 d-flex-center b-r-10 position-relative">
-                      {/* FIXME User Profile */}
                       <img
-                        src="/assets/images/avtar/woman.jpg"
+                        src={userAvatar || "/assets/images/avtar/woman.jpg"}
                         alt="woman"
                         className="img-fluid b-r-10"
                       />
@@ -206,96 +337,7 @@ const HeaderMenu = () => {
                     <i className="ph-duotone  ph-gear pe-1 f-s-20"></i> Settings
                   </Link>
                 </li>
-                <li>
-                  <div className="app-dropdown dropstart">
-                    <Link
-                      className="f-w-500"
-                      role="button"
-                      href="/apps/profile-page/setting"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      <i className="ph-duotone  ph-eye-slash pe-1 f-s-20"></i>
-                      Hide Settings
-                    </Link>
-                    <ul className="dropdown-menu">
-                      <li>
-                        <a className="dropdown-item">Hide Comments</a>
-                      </li>
-                      <li>
-                        <a className="dropdown-item">
-                          Advanced comment filtering
-                        </a>
-                      </li>
-                      <li>
-                        <a className="dropdown-item">Hide mssage request</a>
-                      </li>
-                      <li>
-                        <hr className="dropdown-divider" />
-                      </li>
-                      <li>
-                        <a className="dropdown-item">Separated link</a>
-                      </li>
-                    </ul>
-                  </div>
-                </li>
-                <li>
-                  <div className="d-flex align-items-center justify-content-between">
-                    <a className="f-w-500" href="#">
-                      <i className="ph-duotone  ph-notification pe-1 f-s-20"></i>
-                      Notification
-                    </a>
-                    <div className="flex-shrink-0">
-                      <div className="form-check form-switch">
-                        <input
-                          className="form-check-input form-check-primary"
-                          type="checkbox"
-                          id="basicSwitch"
-                          defaultChecked
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </li>
-                <li>
-                  <div className="d-flex align-items-center justify-content-between">
-                    <div>
-                      <a className="f-w-500" href="#">
-                        <i className="ph-duotone  ph-detective pe-1 f-s-20"></i>
-                        Incognito
-                      </a>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <div className="form-check form-switch">
-                        <input
-                          className="form-check-input form-check-primary"
-                          type="checkbox"
-                          id="incognitoSwitch"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </li>
-                <li className="app-divider-v dotted my-1"></li>
-                <li>
-                  <Link className="f-w-500" href="/apps/faq">
-                    <i className="ph-duotone  ph-question pe-1 f-s-20"></i> Help
-                  </Link>
-                </li>
-                <li>
-                  <Link className="f-w-500" href="/apps/pricing">
-                    <i className="ph-duotone  ph-currency-circle-dollar pe-1 f-s-20"></i>
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    className="mb-0 text-secondary f-w-500"
-                    href="/admin-pages/auth_pages/sign_up"
-                  >
-                    <i className="ph-bold  ph-plus pe-1 f-s-20"></i> Add account
-                  </Link>
-                </li>
+
                 {/* <li className="app-divider-v dotted my-1"></li>
                 <li>
                   <Card className="card-light-primary upgrade-plan">
@@ -333,6 +375,24 @@ const HeaderMenu = () => {
           </div>
         </li>
       </ul>
+
+      <CompanyMembersModal
+        isOpen={companyMembersModalOpen}
+        onClose={() => setCompanyMembersModalOpen(false)}
+        members={companyMembers}
+        status={companyMembersStatus}
+        error={companyMembersError}
+        onReload={handleReloadCompanyMembers}
+        onDeleteMember={handleDeleteCompanyMember}
+        removingByUserId={companyMembersRemovingByUserId}
+      />
+
+      <AddCompanyMemberModal
+        isOpen={companyAddMemberModalOpen}
+        onClose={() => setCompanyAddMemberModalOpen(false)}
+        onSubmit={handleSubmitAddCompanyMember}
+        isSubmitting={companyMemberAddLoading}
+      />
     </>
   );
 };

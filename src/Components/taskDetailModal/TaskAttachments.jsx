@@ -238,6 +238,40 @@ const useAttachmentImageSrc = ({ attachment, href }) => {
   return { src: src || href || "", loading, isImg };
 };
 
+const parseFilenameFromContentDisposition = (headerValue) => {
+  const raw = String(headerValue || "").trim();
+  if (!raw) return "";
+
+  // RFC 5987 filename*=UTF-8''...
+  const m5987 = raw.match(/filename\*\s*=\s*([^']*)''([^;]+)/i);
+  if (m5987 && m5987[2]) {
+    try {
+      return decodeURIComponent(m5987[2].trim().replace(/^"|"$/g, ""));
+    } catch {
+      return m5987[2].trim().replace(/^"|"$/g, "");
+    }
+  }
+
+  // filename="..."
+  const m = raw.match(/filename\s*=\s*("?)([^\";]+)\1/i);
+  if (m && m[2]) return m[2].trim();
+
+  return "";
+};
+
+const triggerBrowserDownload = ({ blob, filename }) => {
+  const name = String(filename || "Attachment").trim() || "Attachment";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
 export default function TaskAttachments({
   projectId,
   taskId,
@@ -315,25 +349,41 @@ export default function TaskAttachments({
 
   const downloadAttachment = async (attachment) => {
     const href = resolveAttachmentHref(getAttachmentUrl(attachment));
-    if (!href) return;
+    const attachmentId = attachment?.id ?? attachment?.attachment_id ?? null;
+    if (!href && !attachmentId) return;
 
     const fallbackName = getAttachmentName(attachment);
     const name = String(fallbackName || "Attachment").trim() || "Attachment";
 
     try {
       setPreviewDownloading(true);
+
+      // Prefer same-origin API endpoint to avoid CORS issues with /storage/ downloads.
+      if (projectId && taskId && attachmentId != null) {
+        try {
+          const res = await api.get(
+            `/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}`,
+            { responseType: "blob" },
+          );
+          const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data]);
+          const headerName = parseFilenameFromContentDisposition(
+            res?.headers?.["content-disposition"] ?? res?.headers?.["Content-Disposition"],
+          );
+          triggerBrowserDownload({ blob, filename: headerName || name });
+          return;
+        } catch {
+          // fall back below
+        }
+      }
+
+      if (!href) throw new Error("Download url missing");
+
       const res = await api.get(href, { responseType: "blob" });
       const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data]);
-
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = name;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
+      const headerName = parseFilenameFromContentDisposition(
+        res?.headers?.["content-disposition"] ?? res?.headers?.["Content-Disposition"],
+      );
+      triggerBrowserDownload({ blob, filename: headerName || name });
     } catch (err) {
       toastError(err?.message || "Download failed");
     } finally {

@@ -6,7 +6,6 @@ const BoardItem = ({
   taskDate,
   taskFileAttachCount,
   taskTags,
-  taskIcon,
   taskUserImg,
   isCompleted = false,
   innerRef,
@@ -139,11 +138,6 @@ const BoardItem = ({
               <span className=" text-secondary">
                 <i className="ti ti-unlink "></i>{" "}
                 <span className="f-s-14">{taskFileAttachCount}</span>
-              </span>
-            </div>
-            <div className="kanban-icon">
-              <span className="text-light-success h-35 w-35 d-flex-center b-r-50">
-                <i className={`ti ${taskIcon} f-s-18`}></i>
               </span>
             </div>
           </div>

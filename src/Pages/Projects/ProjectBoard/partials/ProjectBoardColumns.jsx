@@ -109,6 +109,49 @@ const TaskCard = memo(function TaskCard({
 }) {
   if (!task) return null;
   const completed = isTaskCompleted(task);
+  const pressRef = useRef({
+    startedAt: 0,
+    startX: 0,
+    startY: 0,
+    moved: false,
+  });
+
+  const { onKeyDown: onDragHandleKeyDown, ...taskDragHandleProps } = dragHandleProps || {};
+
+  const openTask = useCallback(() => {
+    onTaskClick?.({ ...task, column_id: columnId, columnId });
+  }, [columnId, onTaskClick, task]);
+
+  const markMoved = useCallback((clientX, clientY) => {
+    const p = pressRef.current;
+    if (!p.startedAt) return;
+    if (Math.abs(clientX - p.startX) > 6 || Math.abs(clientY - p.startY) > 6) {
+      p.moved = true;
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((e) => {
+    pressRef.current = {
+      startedAt: Date.now(),
+      startX: e.clientX ?? 0,
+      startY: e.clientY ?? 0,
+      moved: false,
+    };
+  }, []);
+
+  const handlePointerMove = useCallback(
+    (e) => {
+      markMoved(e.clientX ?? 0, e.clientY ?? 0);
+    },
+    [markMoved],
+  );
+
+  const handleCardClick = useCallback(() => {
+    const p = pressRef.current;
+    const elapsed = Date.now() - (p.startedAt || 0);
+    if (p.moved || elapsed > 220) return;
+    openTask();
+  }, [openTask]);
 
   return (
     <div
@@ -117,26 +160,35 @@ const TaskCard = memo(function TaskCard({
         enter ? { "--enter-delay": `${Math.min(Number(enterIndex) || 0, 20) * 55}ms` } : null
       }
     >
-      <div className="board-item-drag-handle" aria-hidden="true" {...(dragHandleProps || {})} />
       <BoardItem
+        {...taskDragHandleProps}
         className={`${isDragging ? "is-dragging" : ""} ${
           completed ? "task-completed" : ""
         } ${flashCompleted ? "task-completed-flash" : ""} ${enter ? "task-enter" : ""}`}
         role="button"
         tabIndex={0}
-        onClick={() => onTaskClick?.({ ...task, column_id: columnId, columnId })}
+        onClick={handleCardClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerCancel={() => {
+          pressRef.current.startedAt = 0;
+        }}
+        onPointerUp={() => {
+          // keep press timing data for click handler right after pointer up
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onTaskClick?.({ ...task, column_id: columnId, columnId });
+            openTask();
+            return;
           }
+          onDragHandleKeyDown?.(e);
         }}
         taskTitle={task.title || task.name || task.text || "Task"}
         taskBody={task.body || task.description || "-"}
         taskDate={formatTaskDate(task)}
         taskFileAttachCount={getTaskAttachmentCount(task) || "0"}
         taskTags={task.tags ?? task.tag_list ?? task.task_tags ?? task.labels ?? []}
-        taskIcon={task.icon || "ti-device-desktop-analytics"}
         taskUserImg={task.user_image || task.avatar || ""}
         isCompleted={completed}
       />
