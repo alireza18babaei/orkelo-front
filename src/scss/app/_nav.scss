@@ -2,11 +2,37 @@
 
 .toggle-semi-nav {
     float: right;
-    padding: 5px;
+    padding: 6px;
     line-height: 1.1;
-    border-radius: 15px;
+    border-radius: 12px;
     cursor: pointer;
     display: none;
+    color: rgba(var(--primary), 1);
+    background: linear-gradient(
+      135deg,
+      rgba(var(--primary), 0.14),
+      rgba(var(--primary), 0.28)
+    ) !important;
+    border: 1px solid rgba(var(--primary), 0.32);
+    box-shadow: 0 6px 14px rgba(var(--primary), 0.16);
+    transition: var(--app-transition);
+
+    i {
+        color: rgba(var(--primary), 1);
+    }
+
+    &:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(var(--primary), 0.24),
+          rgba(var(--primary), 0.42)
+        ) !important;
+    }
+}
+
+/* Show sidebar toggle in default (expanded) mode */
+.app-wrapper nav.vertical-sidebar:not(.semi-nav) .toggle-semi-nav {
+    display: block;
 }
 
 .semi-nav {

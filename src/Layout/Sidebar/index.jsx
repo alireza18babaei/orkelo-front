@@ -182,7 +182,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
           tabIndex={0}
           onClick={() => setIsSidebarOpen(!sidebarOpen)}
         >
-          <i className="ti ti-chevrons-right f-s-20"></i>
+          <i className={`ti ${sidebarOpen ? "ti-chevrons-right" : "ti-chevrons-left"} f-s-20`}></i>
         </span>
       </div>
       <Scrollbar className="app-nav simplebar-scrollable-y" id="app-simple-bar">

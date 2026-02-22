@@ -1042,20 +1042,6 @@
     }
   }
 
-  .app-wrapper {
-    .semi-nav {
-      .app-logo {
-        .toggle-semi-nav {
-          i {
-            &:before {
-              content: "\eb55";
-            }
-          }
-        }
-      }
-    }
-  }
-
   .text-elips {
     overflow: hidden;
     text-overflow: ellipsis;

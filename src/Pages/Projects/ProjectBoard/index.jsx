@@ -14,6 +14,10 @@ import {
   createProjectTaskThunk,
   deleteProjectColumnThunk,
   getProjectColumnsThunk,
+  reorderProjectColumnsLocal,
+  reorderProjectColumnsThunk,
+  reorderProjectTasksLocal,
+  reorderProjectTaskThunk,
   removeTaskFromColumn,
   updateProjectColumnThunk,
 } from "../../../store/projects/projectColumnsSlice";
@@ -45,6 +49,25 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { updateProjectSchema } from "../../../validation/project/updateProject.schema";
 
 const PROJECT_STATUS = ["active", "deactive"];
+
+const toSortableColumnPosition = (column) => {
+  const n = Number(column?.position);
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+};
+
+const sortColumnsByPosition = (columns) => {
+  const next = Array.isArray(columns) ? [...columns] : [];
+  return next.sort((a, b) => {
+    const posDiff = toSortableColumnPosition(a) - toSortableColumnPosition(b);
+    if (posDiff !== 0) return posDiff;
+
+    const aId = Number(a?.id);
+    const bId = Number(b?.id);
+    if (Number.isFinite(aId) && Number.isFinite(bId)) return aId - bId;
+
+    return String(a?.id ?? "").localeCompare(String(b?.id ?? ""));
+  });
+};
 
 const ProjectBoard = () => {
   const { id } = useParams();
@@ -130,55 +153,41 @@ const ProjectBoard = () => {
     : columnsFromList;
 
   const columns = useMemo(() => {
-    if (!columnsFromSlice?.length) return baseColumns || [];
+    if (!columnsFromSlice?.length) {
+      return sortColumnsByPosition(baseColumns || []);
+    }
 
     const removedSet = new Set(removedTaskIds.map(String));
     const baseMap = new Map(
       (baseColumns || []).map((c) => [String(c.id), c]),
     );
 
-    return columnsFromSlice.map((c) => {
-      const base = baseMap.get(String(c.id));
-      const next = { ...base, ...c };
-      const baseTasks = Array.isArray(base?.tasks) ? base.tasks : null;
-      const sliceTasks = Array.isArray(c?.tasks) ? c.tasks : null;
-      if (baseTasks && !sliceTasks) {
-        next.tasks = baseTasks.filter(
-          (t) => !removedSet.has(String(t.id ?? t.task_id ?? t.uuid)),
-        );
-      } else if (baseTasks && sliceTasks) {
+    return sortColumnsByPosition(
+      columnsFromSlice.map((c) => {
+        const base = baseMap.get(String(c.id));
+        const next = { ...base, ...c };
+        const baseTasks = Array.isArray(base?.tasks) ? base.tasks : null;
+        const sliceTasks = Array.isArray(c?.tasks) ? c.tasks : null;
         const getTaskKey = (t) =>
           String(t?.id ?? t?.task_id ?? t?.uuid ?? t?.text ?? "");
 
-        const mergedByKey = new Map();
-        const order = [];
-        const seenKeys = new Set();
-        const pushKey = (key) => {
-          if (seenKeys.has(key)) return;
-          seenKeys.add(key);
-          order.push(key);
-        };
-
-        baseTasks.forEach((t) => {
-          const key = getTaskKey(t);
-          pushKey(key);
-          mergedByKey.set(key, t);
-        });
-
-        sliceTasks.forEach((t) => {
-          const key = getTaskKey(t);
-          const prev = mergedByKey.get(key);
-          pushKey(key);
-          mergedByKey.set(key, prev ? { ...prev, ...t } : t);
-        });
-
-        next.tasks = order
-          .map((k) => mergedByKey.get(k))
-          .filter(Boolean)
-          .filter((t) => !removedSet.has(String(t.id ?? t.task_id ?? t.uuid)));
-      }
-      return next;
-    });
+        if (sliceTasks) {
+          const baseByKey = new Map((baseTasks || []).map((t) => [getTaskKey(t), t]));
+          next.tasks = sliceTasks
+            .map((t) => {
+              const key = getTaskKey(t);
+              const baseTask = baseByKey.get(key);
+              return baseTask ? { ...baseTask, ...t } : t;
+            })
+            .filter((t) => !removedSet.has(String(t.id ?? t.task_id ?? t.uuid)));
+        } else if (baseTasks) {
+          next.tasks = baseTasks.filter(
+            (t) => !removedSet.has(String(t.id ?? t.task_id ?? t.uuid)),
+          );
+        }
+        return next;
+      }),
+    );
   }, [columnsFromSlice, baseColumns, removedTaskIds]);
 
   useEffect(() => {
@@ -553,6 +562,97 @@ const ProjectBoard = () => {
     }
   };
 
+  const normalizeColumnOrderIds = (orderedIds) =>
+    (Array.isArray(orderedIds) ? orderedIds : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0);
+
+  const handleReorderColumns = async ({ orderedIds, previousOrderedIds }) => {
+    const projectId = Number(project?.id ?? id);
+    if (!Number.isInteger(projectId) || projectId <= 0) return;
+
+    const nextOrderedIds = normalizeColumnOrderIds(orderedIds);
+    const prevOrderedIds = normalizeColumnOrderIds(previousOrderedIds);
+    if (!nextOrderedIds.length) return;
+
+    dispatch(
+      reorderProjectColumnsLocal({
+        projectId,
+        orderedIds: nextOrderedIds,
+      }),
+    );
+
+    try {
+      await dispatch(
+        reorderProjectColumnsThunk({
+          projectId,
+          orderedIds: nextOrderedIds,
+        }),
+      ).unwrap();
+    } catch (err) {
+      if (prevOrderedIds.length) {
+        dispatch(
+          reorderProjectColumnsLocal({
+            projectId,
+            orderedIds: prevOrderedIds,
+          }),
+        );
+      }
+
+      const msg =
+        err?.message ||
+        err?.data?.message ||
+        "Column reorder failed";
+      toastError(msg);
+      throw err;
+    }
+  };
+
+  const handleReorderTask = async ({
+    taskId,
+    sourceColumnId,
+    destinationColumnId,
+    sourceTaskIds,
+    destinationTaskIds,
+    previousSourceTaskIds,
+    previousDestinationTaskIds,
+  }) => {
+    const projectId = Number(project?.id ?? id);
+    if (!Number.isInteger(projectId) || projectId <= 0) return;
+
+    const payload = {
+      projectId,
+      taskId,
+      sourceColumnId,
+      destinationColumnId,
+      sourceTaskIds,
+      destinationTaskIds,
+    };
+
+    dispatch(reorderProjectTasksLocal(payload));
+
+    try {
+      await dispatch(reorderProjectTaskThunk(payload)).unwrap();
+    } catch (err) {
+      dispatch(
+        reorderProjectTasksLocal({
+          projectId,
+          sourceColumnId,
+          destinationColumnId,
+          sourceTaskIds: previousSourceTaskIds,
+          destinationTaskIds: previousDestinationTaskIds,
+        }),
+      );
+
+      const msg =
+        err?.message ||
+        err?.data?.message ||
+        "Task reorder failed";
+      toastError(msg);
+      throw err;
+    }
+  };
+
   const handleDeleteProjectMember = async (member) => {
     const memberId = String(member?.removeId ?? "");
     if (!id || !memberId) {
@@ -639,6 +739,8 @@ const ProjectBoard = () => {
                 onDeleteColumn={handleColumnDelete}
                 onAddTask={handleAddTask}
                 onTaskClick={handleTaskClick}
+                onReorderColumns={handleReorderColumns}
+                onReorderTask={handleReorderTask}
               />
             </div>
           </div>

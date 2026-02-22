@@ -2,6 +2,184 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import api from "../../api/axios";
 import { getErrorMessage } from "../../utils/getError";
 
+const normalizeOrderedIds = (orderedIds) =>
+  (Array.isArray(orderedIds) ? orderedIds : [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+const toSortableColumnPosition = (column) => {
+  const n = Number(column?.position);
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+};
+
+const sortColumnsByPosition = (columns) => {
+  const next = Array.isArray(columns) ? [...columns] : [];
+  return next.sort((a, b) => {
+    const posDiff = toSortableColumnPosition(a) - toSortableColumnPosition(b);
+    if (posDiff !== 0) return posDiff;
+
+    const aId = Number(a?.id);
+    const bId = Number(b?.id);
+    if (Number.isFinite(aId) && Number.isFinite(bId)) return aId - bId;
+
+    return String(a?.id ?? "").localeCompare(String(b?.id ?? ""));
+  });
+};
+
+const toTaskIdKey = (task) => String(task?.id ?? task?.task_id ?? task?.uuid ?? "");
+
+const normalizeTaskIds = (taskIds) =>
+  (Array.isArray(taskIds) ? taskIds : [])
+    .map((id) => String(id ?? "").trim())
+    .filter(Boolean);
+
+const normalizeColumnIdValue = (columnId) => {
+  const n = Number(columnId);
+  return Number.isInteger(n) && n > 0 ? n : columnId;
+};
+
+const buildTaskByIdMap = (columns) => {
+  const map = new Map();
+  (Array.isArray(columns) ? columns : []).forEach((column) => {
+    const tasks = Array.isArray(column?.tasks) ? column.tasks : [];
+    tasks.forEach((task) => {
+      const key = toTaskIdKey(task);
+      if (!key || map.has(key)) return;
+      map.set(key, task);
+    });
+  });
+  return map;
+};
+
+const applyTaskOrderToColumn = ({
+  tasks,
+  orderedTaskIds,
+  columnId,
+  taskById,
+  keepRest = true,
+}) => {
+  const nextTasks = Array.isArray(tasks) ? tasks : [];
+  const normalizedIds = normalizeTaskIds(orderedTaskIds);
+  if (!normalizedIds.length) {
+    return keepRest ? nextTasks : [];
+  }
+
+  const byId =
+    taskById instanceof Map
+      ? taskById
+      : new Map(nextTasks.map((task) => [toTaskIdKey(task), task]));
+  const used = new Set();
+  const normalizedColumnId = normalizeColumnIdValue(columnId);
+
+  const orderedTasks = [];
+  normalizedIds.forEach((id, index) => {
+    if (used.has(id)) return;
+    const task = byId.get(id);
+    if (!task) return;
+    used.add(id);
+    orderedTasks.push({
+      ...task,
+      position: index + 1,
+      column_id: normalizedColumnId,
+      columnId: normalizedColumnId,
+    });
+  });
+
+  if (keepRest) {
+    nextTasks.forEach((task) => {
+      const key = toTaskIdKey(task);
+      if (!key || used.has(key)) return;
+      orderedTasks.push(task);
+    });
+  }
+
+  return orderedTasks;
+};
+
+const applyTaskReorder = (columns, payload) => {
+  const nextColumns = Array.isArray(columns) ? columns : [];
+  const sourceColumnId = String(payload?.sourceColumnId ?? "");
+  const destinationColumnId = String(payload?.destinationColumnId ?? "");
+  const sourceTaskIds = normalizeTaskIds(payload?.sourceTaskIds);
+  const destinationTaskIds = normalizeTaskIds(payload?.destinationTaskIds);
+
+  if (!sourceColumnId || !destinationColumnId) return nextColumns;
+  const taskById = buildTaskByIdMap(nextColumns);
+
+  return nextColumns.map((column) => {
+    const columnId = String(column?.id ?? "");
+    if (columnId === sourceColumnId && columnId === destinationColumnId) {
+      return {
+        ...column,
+        tasks: applyTaskOrderToColumn({
+          tasks: column?.tasks,
+          orderedTaskIds: sourceTaskIds,
+          columnId: column?.id,
+          taskById,
+          keepRest: true,
+        }),
+      };
+    }
+
+    if (columnId === sourceColumnId) {
+      return {
+        ...column,
+        tasks: applyTaskOrderToColumn({
+          tasks: column?.tasks,
+          orderedTaskIds: sourceTaskIds,
+          columnId: column?.id,
+          taskById,
+          keepRest: false,
+        }),
+      };
+    }
+
+    if (columnId === destinationColumnId) {
+      return {
+        ...column,
+        tasks: applyTaskOrderToColumn({
+          tasks: column?.tasks,
+          orderedTaskIds: destinationTaskIds,
+          columnId: column?.id,
+          taskById,
+          keepRest: false,
+        }),
+      };
+    }
+
+    return column;
+  });
+};
+
+const applyColumnOrder = (columns, orderedIds) => {
+  const nextColumns = Array.isArray(columns) ? columns : [];
+  const normalizedIds = normalizeOrderedIds(orderedIds).map(String);
+  if (!normalizedIds.length) return nextColumns;
+
+  const byId = new Map(nextColumns.map((column) => [String(column?.id), column]));
+  const used = new Set();
+  const orderedColumns = [];
+
+  normalizedIds.forEach((id) => {
+    if (used.has(id)) return;
+    const column = byId.get(id);
+    if (!column) return;
+    used.add(id);
+    orderedColumns.push(column);
+  });
+
+  nextColumns.forEach((column) => {
+    const key = String(column?.id);
+    if (used.has(key)) return;
+    orderedColumns.push(column);
+  });
+
+  return orderedColumns.map((column, index) => ({
+    ...column,
+    position: index + 1,
+  }));
+};
+
 export const getProjectColumnsThunk = createAsyncThunk(
   "projectColumns/getByProject",
   async (projectId, { getState, rejectWithValue }) => {
@@ -10,7 +188,7 @@ export const getProjectColumnsThunk = createAsyncThunk(
       const list = state?.projects?.items || [];
       const fromList = list.find((p) => String(p.id) === String(projectId));
       if (fromList && Array.isArray(fromList.columns)) {
-        return { projectId, columns: fromList.columns };
+        return { projectId, columns: sortColumnsByPosition(fromList.columns) };
       }
 
       const res = await api.get(`/projects/${projectId}`);
@@ -22,7 +200,10 @@ export const getProjectColumnsThunk = createAsyncThunk(
         root?.columns ??
         root?.project?.columns ??
         [];
-      return { projectId, columns: Array.isArray(columns) ? columns : [] };
+      return {
+        projectId,
+        columns: sortColumnsByPosition(Array.isArray(columns) ? columns : []),
+      };
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
     }
@@ -108,6 +289,127 @@ export const createProjectTaskThunk = createAsyncThunk(
   },
 );
 
+export const reorderProjectColumnsThunk = createAsyncThunk(
+  "projectColumns/reorder",
+  async ({ projectId, orderedIds }, { rejectWithValue }) => {
+    try {
+      const normalizedIds = normalizeOrderedIds(orderedIds);
+      if (!normalizedIds.length) {
+        return { projectId, orderedIds: [] };
+      }
+
+      await api.patch(`/projects/${projectId}/columns/reorder`, {
+        ordered_ids: normalizedIds,
+      });
+
+      return { projectId, orderedIds: normalizedIds };
+    } catch (err) {
+      return rejectWithValue(getErrorMessage(err));
+    }
+  },
+);
+
+export const reorderProjectTaskThunk = createAsyncThunk(
+  "projectColumns/reorderTask",
+  async (
+    {
+      projectId,
+      taskId,
+      sourceColumnId,
+      destinationColumnId,
+      sourceTaskIds,
+      destinationTaskIds,
+    },
+    { rejectWithValue },
+  ) => {
+    try {
+      const normalizedProjectId = Number(projectId);
+      const normalizedTaskId = Number(taskId);
+      const normalizedSourceColumnId = Number(sourceColumnId);
+      const normalizedDestinationColumnId = Number(destinationColumnId);
+      const normalizedSourceTaskIds = normalizeTaskIds(sourceTaskIds);
+      const normalizedDestinationTaskIds = normalizeTaskIds(destinationTaskIds);
+
+      if (
+        !Number.isInteger(normalizedProjectId) ||
+        normalizedProjectId <= 0 ||
+        !Number.isInteger(normalizedTaskId) ||
+        normalizedTaskId <= 0 ||
+        !Number.isInteger(normalizedSourceColumnId) ||
+        normalizedSourceColumnId <= 0 ||
+        !Number.isInteger(normalizedDestinationColumnId) ||
+        normalizedDestinationColumnId <= 0
+      ) {
+        return rejectWithValue({ message: "Invalid task reorder payload." });
+      }
+
+      const sameColumn = normalizedSourceColumnId === normalizedDestinationColumnId;
+
+      if (sameColumn) {
+        for (let i = 0; i < normalizedSourceTaskIds.length; i += 1) {
+          const id = Number(normalizedSourceTaskIds[i]);
+          if (!Number.isInteger(id) || id <= 0) continue;
+          await api.patch(
+            `/projects/${normalizedProjectId}/columns/${normalizedSourceColumnId}/tasks/${id}`,
+            { position: i + 1 },
+          );
+        }
+
+        return {
+          projectId: normalizedProjectId,
+          taskId: normalizedTaskId,
+          sourceColumnId: normalizedSourceColumnId,
+          destinationColumnId: normalizedDestinationColumnId,
+          sourceTaskIds: normalizedSourceTaskIds,
+          destinationTaskIds: normalizedDestinationTaskIds,
+        };
+      }
+
+      const destinationIndex = normalizedDestinationTaskIds.findIndex(
+        (id) => String(id) === String(normalizedTaskId),
+      );
+      const movedTaskPosition = destinationIndex >= 0 ? destinationIndex + 1 : null;
+
+      await api.patch(
+        `/projects/${normalizedProjectId}/columns/${normalizedSourceColumnId}/tasks/${normalizedTaskId}`,
+        {
+          column_id: normalizedDestinationColumnId,
+          ...(movedTaskPosition ? { position: movedTaskPosition } : {}),
+        },
+      );
+
+      for (let i = 0; i < normalizedSourceTaskIds.length; i += 1) {
+        const id = Number(normalizedSourceTaskIds[i]);
+        if (!Number.isInteger(id) || id <= 0 || id === normalizedTaskId) continue;
+        await api.patch(
+          `/projects/${normalizedProjectId}/columns/${normalizedSourceColumnId}/tasks/${id}`,
+          { position: i + 1 },
+        );
+      }
+
+      for (let i = 0; i < normalizedDestinationTaskIds.length; i += 1) {
+        const id = Number(normalizedDestinationTaskIds[i]);
+        if (!Number.isInteger(id) || id <= 0 || id === normalizedTaskId) continue;
+        await api.patch(
+          `/projects/${normalizedProjectId}/columns/${normalizedDestinationColumnId}/tasks/${id}`,
+          { position: i + 1 },
+        );
+      }
+
+      return {
+        projectId: normalizedProjectId,
+        taskId: normalizedTaskId,
+        sourceColumnId: normalizedSourceColumnId,
+        destinationColumnId: normalizedDestinationColumnId,
+        sourceTaskIds: normalizedSourceTaskIds,
+        destinationTaskIds: normalizedDestinationTaskIds,
+      };
+    } catch (err) {
+      return rejectWithValue(getErrorMessage(err));
+    }
+  },
+);
+
 export const getColumnTasksThunk = createAsyncThunk(
   "projectColumns/getColumnTasks",
   async ({ projectId, columnId }, { rejectWithValue }) => {
@@ -166,9 +468,35 @@ const projectColumnsSlice = createSlice({
     clearProjectColumns: () => initialState,
     setProjectColumns: (state, action) => {
       state.projectId = action.payload?.projectId ?? null;
-      state.items = action.payload?.columns || [];
+      state.items = sortColumnsByPosition(action.payload?.columns || []);
       state.tasksLoadingByColumnId = {};
       state.tasksErrorByColumnId = {};
+    },
+    reorderProjectColumnsLocal: (state, action) => {
+      const { projectId, orderedIds } = action.payload || {};
+      if (
+        projectId != null &&
+        state.projectId != null &&
+        String(state.projectId) !== String(projectId)
+      ) {
+        return;
+      }
+
+      state.projectId = projectId ?? state.projectId;
+      state.items = applyColumnOrder(state.items, orderedIds);
+    },
+    reorderProjectTasksLocal: (state, action) => {
+      const { projectId } = action.payload || {};
+      if (
+        projectId != null &&
+        state.projectId != null &&
+        String(state.projectId) !== String(projectId)
+      ) {
+        return;
+      }
+
+      state.projectId = projectId ?? state.projectId;
+      state.items = applyTaskReorder(state.items, action.payload || {});
     },
     updateTaskInColumn: (state, action) => {
       const { columnId, taskId, patch } = action.payload || {};
@@ -232,16 +560,18 @@ const projectColumnsSlice = createSlice({
       );
 
       state.projectId = projectId;
-      state.items = (nextColumns || []).map((c) => {
-        const key = String(c?.id);
-        const existingTasks = c?.tasks;
-        if (existingTasks != null) return c;
+      state.items = sortColumnsByPosition(
+        (nextColumns || []).map((c) => {
+          const key = String(c?.id);
+          const existingTasks = c?.tasks;
+          if (existingTasks != null) return c;
 
-        const prevTasks = prevTasksByColumnId.get(key);
-        if (Array.isArray(prevTasks)) return { ...c, tasks: prevTasks };
+          const prevTasks = prevTasksByColumnId.get(key);
+          if (Array.isArray(prevTasks)) return { ...c, tasks: prevTasks };
 
-        return c;
-      });
+          return c;
+        }),
+      );
     });
     builder.addCase(getProjectColumnsThunk.rejected, (state, action) => {
       state.status = "failed";
@@ -255,14 +585,16 @@ const projectColumnsSlice = createSlice({
       const { projectId, column } = action.payload || {};
       if (!column) return;
       state.projectId = projectId ?? state.projectId;
-      state.items = [column, ...(state.items || [])];
+      state.items = sortColumnsByPosition([...(state.items || []), column]);
     });
     builder.addCase(updateProjectColumnThunk.fulfilled, (state, action) => {
       const { projectId, column } = action.payload || {};
       if (!column) return;
       state.projectId = projectId ?? state.projectId;
-      state.items = (state.items || []).map((c) =>
-        String(c.id) === String(column.id) ? { ...c, ...column } : c,
+      state.items = sortColumnsByPosition(
+        (state.items || []).map((c) =>
+          String(c.id) === String(column.id) ? { ...c, ...column } : c,
+        ),
       );
     });
     builder.addCase(deleteProjectColumnThunk.fulfilled, (state, action) => {
@@ -275,6 +607,17 @@ const projectColumnsSlice = createSlice({
       state.items = (state.items || []).filter(
         (c) => String(c.id) !== String(columnId),
       );
+    });
+    builder.addCase(reorderProjectColumnsThunk.fulfilled, (state, action) => {
+      const { projectId, orderedIds } = action.payload || {};
+      state.projectId = projectId ?? state.projectId;
+      if (!orderedIds?.length) return;
+      state.items = applyColumnOrder(state.items, orderedIds);
+    });
+    builder.addCase(reorderProjectTaskThunk.fulfilled, (state, action) => {
+      const { projectId } = action.payload || {};
+      state.projectId = projectId ?? state.projectId;
+      state.items = applyTaskReorder(state.items, action.payload || {});
     });
 
     builder.addCase(createProjectTaskThunk.fulfilled, (state, action) => {
@@ -331,6 +674,12 @@ const projectColumnsSlice = createSlice({
   },
 });
 
-export const { clearProjectColumns, setProjectColumns, updateTaskInColumn, removeTaskFromColumn } =
-  projectColumnsSlice.actions;
+export const {
+  clearProjectColumns,
+  setProjectColumns,
+  reorderProjectColumnsLocal,
+  reorderProjectTasksLocal,
+  updateTaskInColumn,
+  removeTaskFromColumn,
+} = projectColumnsSlice.actions;
 export default projectColumnsSlice.reducer;

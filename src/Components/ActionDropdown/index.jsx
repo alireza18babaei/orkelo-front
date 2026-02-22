@@ -5,6 +5,7 @@ const ActionDropdown = ({
   onToggle,
   actions = [],
   rootRef,
+  align = "end",
   children,
 }) => {
   React.useEffect(() => {
@@ -30,12 +31,15 @@ const ActionDropdown = ({
 
   if (!open) return null;
 
+  const placementStyle =
+    align === "start" ? { left: 0, right: "auto" } : { right: 0, left: "auto" };
+
   return (
     <div
       className={`dropdown-menu position-absolute  ${open ? "show" : ""} p-1`}
       style={{
         top: "calc(100% + 2px)",
-        right: 0,
+        ...placementStyle,
         margin: 0,
         zIndex: 1060,
         minWidth: 240,
@@ -53,7 +57,7 @@ const ActionDropdown = ({
               <button
                 key={a.key ?? index}
                 type="button"
-                className={`dropdown-item d-flex align-items-center justify-content-between py-1 px-2 ${
+                className={`dropdown-item d-flex align-items-center py-1 px-2 text-start ${
                   a.destructive ? "text-danger" : ""
                 }`}
                 disabled={!!a.disabled}
@@ -64,8 +68,8 @@ const ActionDropdown = ({
                   onToggle(false);
                 }}
               >
-                <span className="text-truncate">{a.label}</span>
-                {a.icon ? <i className={`ti ${a.icon} fs-5`}></i> : null}
+                <span className="text-truncate flex-grow-1 pe-2">{a.label}</span>
+                {a.icon ? <i className={`ti ${a.icon} fs-5 ms-auto`}></i> : null}
               </button>
             );
           })

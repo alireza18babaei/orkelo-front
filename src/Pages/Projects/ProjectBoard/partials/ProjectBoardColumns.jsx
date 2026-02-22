@@ -366,6 +366,8 @@ const ProjectBoardColumns = ({
   onDeleteColumn,
   onAddTask,
   onTaskClick,
+  onReorderColumns,
+  onReorderTask,
 }) => {
   const [board, setBoard] = useState(() => normalizeBoard(columnsProp));
   const snapshotRef = useRef(null);
@@ -508,9 +510,29 @@ const ProjectBoardColumns = ({
     }
 
     if (type === "COLUMN") {
-      if (source.index === destination.index) return;
-      setBoard((prev) => ({ ...prev, columns: arrayMove(prev.columns, source.index, destination.index) }));
+      if (source.index === destination.index) {
+        snapshotRef.current = null;
+        return;
+      }
+
+      const baseBoard = snapshotRef.current || board;
+      const previousOrderedIds = (baseBoard.columns || []).map((col) => String(col.id));
+      const nextColumns = arrayMove(baseBoard.columns || [], source.index, destination.index);
+      const orderedIds = nextColumns.map((col) => String(col.id));
+
+      setBoard((prev) => ({ ...prev, columns: nextColumns }));
       snapshotRef.current = null;
+
+      try {
+        const maybePromise = onReorderColumns?.({ orderedIds, previousOrderedIds });
+        if (maybePromise && typeof maybePromise.then === "function") {
+          maybePromise.catch(() => {
+            setBoard(baseBoard);
+          });
+        }
+      } catch {
+        setBoard(baseBoard);
+      }
       return;
     }
 
@@ -518,33 +540,70 @@ const ProjectBoardColumns = ({
     const taskId = draggableId.slice(5);
     const sourceColId = String(source.droppableId || "").replace(/^col-/, "");
     const destColId = String(destination.droppableId || "").replace(/^col-/, "");
+    if (sourceColId === destColId && source.index === destination.index) {
+      snapshotRef.current = null;
+      return;
+    }
 
-    setBoard((prev) => {
-      const columns = prev.columns || [];
-      const sourceIndex = columns.findIndex((c) => String(c.id) === sourceColId);
-      const destIndex = columns.findIndex((c) => String(c.id) === destColId);
-      if (sourceIndex === -1 || destIndex === -1) return prev;
+    const baseBoard = snapshotRef.current || board;
+    const columns = baseBoard.columns || [];
+    const sourceIndex = columns.findIndex((c) => String(c.id) === sourceColId);
+    const destIndex = columns.findIndex((c) => String(c.id) === destColId);
+    if (sourceIndex === -1 || destIndex === -1) {
+      snapshotRef.current = null;
+      return;
+    }
 
-      const nextColumns = columns.map((c) => ({ ...c, taskIds: [...(c.taskIds || [])] }));
-      const sourceTasks = nextColumns[sourceIndex].taskIds;
-      const destTasks = nextColumns[destIndex].taskIds;
+    const previousSourceTaskIds = [...(columns[sourceIndex]?.taskIds || [])];
+    const previousDestinationTaskIds =
+      sourceIndex === destIndex
+        ? [...previousSourceTaskIds]
+        : [...(columns[destIndex]?.taskIds || [])];
 
-      sourceTasks.splice(source.index, 1);
-      destTasks.splice(destination.index, 0, taskId);
+    const nextColumns = columns.map((c) => ({ ...c, taskIds: [...(c.taskIds || [])] }));
+    const sourceTasks = nextColumns[sourceIndex].taskIds;
+    const destTasks = nextColumns[destIndex].taskIds;
 
-      const tasksById = { ...(prev.tasksById || {}) };
-      if (tasksById[String(taskId)]) {
-        tasksById[String(taskId)] = {
-          ...tasksById[String(taskId)],
-          column_id: destColId,
-          columnId: destColId,
-        };
-      }
+    sourceTasks.splice(source.index, 1);
+    destTasks.splice(destination.index, 0, taskId);
 
-      return { ...prev, columns: nextColumns, tasksById };
-    });
+    const sourceTaskIds = [...(nextColumns[sourceIndex]?.taskIds || [])];
+    const destinationTaskIds =
+      sourceIndex === destIndex
+        ? [...sourceTaskIds]
+        : [...(nextColumns[destIndex]?.taskIds || [])];
 
+    const tasksById = { ...(baseBoard.tasksById || {}) };
+    if (tasksById[String(taskId)]) {
+      tasksById[String(taskId)] = {
+        ...tasksById[String(taskId)],
+        column_id: destColId,
+        columnId: destColId,
+      };
+    }
+
+    const nextBoard = { ...baseBoard, columns: nextColumns, tasksById };
+    setBoard(nextBoard);
     snapshotRef.current = null;
+
+    try {
+      const maybePromise = onReorderTask?.({
+        taskId,
+        sourceColumnId: sourceColId,
+        destinationColumnId: destColId,
+        sourceTaskIds,
+        destinationTaskIds,
+        previousSourceTaskIds,
+        previousDestinationTaskIds,
+      });
+      if (maybePromise && typeof maybePromise.then === "function") {
+        maybePromise.catch(() => {
+          setBoard(baseBoard);
+        });
+      }
+    } catch {
+      setBoard(baseBoard);
+    }
   };
 
   if (!board.columns.length) {
