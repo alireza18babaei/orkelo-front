@@ -6,16 +6,15 @@
 
 .board {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 20px;
   padding: 0 10px;
   min-height: 200px;
 
   overflow-x: auto;
-  // When a column grows (many tasks), keep the board area scrollable
-  // so the footer / remaining tasks stay reachable.
+  // Vertical scroll should happen inside each column, not the whole board.
   height: calc(100vh - 200px);
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 /* Column */
@@ -24,9 +23,17 @@
   width: 300px;
   flex: 0 0 300px;
   margin: 0;
-  background: rgba(var(--secondary), 0.1);
+  background: rgba(202, 202, 202, 0.58);
   border-radius: 8px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(var(--dark), 0.05);
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
 
   transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 220ms ease;
   will-change: transform;
@@ -83,16 +90,55 @@
 .board-column-content-wrapper {
   position: relative;
   z-index: 1;
-  // NOTE: @hello-pangea/dnd does not support nested scroll containers in dev.
-  // Keep columns non-scrollable (page scroll instead) to avoid DnD glitches.
-  overflow: visible;
-  max-height: none;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .board-column-content {
   position: relative;
   border: 10px solid transparent;
   min-height: 95px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--secondary), 0.38) transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(var(--secondary), 0.32);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--secondary), 0.5);
+    background-clip: content-box;
+  }
+
+  &::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 .board-column-content.is-over {
@@ -102,6 +148,7 @@
 
 .board-column-footer {
   position: relative;
+  flex: 0 0 auto;
 }
 
 /* Task wrapper */
@@ -258,7 +305,7 @@
 
 .project-board-main__scroll {
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .project-board-main__scroll .board {
@@ -271,10 +318,10 @@
   width: 126px;
   flex: 0 0 126px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, #202b3a 0%, #141d2a 100%);
-  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.32);
-  color: #f5f8ff;
+  border: 1px solid rgba(var(--secondary), 0.28);
+  background: var(--white);
+  box-shadow: 0 14px 26px rgba(var(--dark), 0.14);
+  color: rgba(var(--dark), 0.9);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -285,7 +332,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(var(--secondary), 0.28);
 }
 
 .project-members-panel__add-btn {
@@ -298,11 +345,11 @@
   justify-content: center;
   color: #ffffff;
   font-size: 1.6rem;
-  background: rgba(56, 189, 248, 0.24);
+  background: rgba(var(--primary));
   transition: 0.2s ease;
 
   &:hover {
-    background: rgba(56, 189, 248, 0.4);
+    background: rgba(var(--primary), 0.4);
   }
 }
 
@@ -324,7 +371,7 @@
   align-items: center;
   justify-content: center;
   font-size: 1.3rem;
-  color: rgba(244, 248, 255, 0.9);
+  color: rgba(var(--dark), 0.72);
 }
 
 .project-members-panel__item {
@@ -343,7 +390,7 @@
   transition: 0.2s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(var(--secondary), 0.1);
   }
 
   &:hover .project-members-panel__delete,
@@ -387,7 +434,7 @@
     opacity: 1;
     pointer-events: auto;
     border-color: rgba(var(--danger), 0.28);
-    color: var(--white);
+    color: #ffffff;
     background: rgba(var(--danger), 1);
   }
 
@@ -410,8 +457,8 @@
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  background: rgba(14, 165, 233, 0.2);
-  color: #ffffff;
+  background: rgba(var(--primary), 0.2);
+  color: rgba(var(--dark), 0.9);
   font-size: 0.85rem;
   font-weight: 700;
   display: inline-flex;
@@ -419,7 +466,7 @@
   justify-content: center;
   flex: 0 0 52px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(var(--secondary), 0.3);
 
   img {
     width: 100%;
@@ -430,7 +477,7 @@
 
 .project-members-panel__name {
   margin: 0;
-  color: rgba(244, 248, 255, 0.95);
+  color: rgba(var(--dark), 0.9);
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.35;
@@ -523,6 +570,68 @@
 
 .project-add-member-row__action {
   flex: 0 0 auto;
+}
+
+nav.dark-sidebar {
+  ~ .app-content {
+    .project-members-panel {
+      background: #333644;
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 18px 34px rgba(15, 23, 42, 0.32);
+      color: rgba(234, 234, 236, 0.95);
+    }
+
+    .project-members-panel__head {
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .project-members-panel__loading {
+      color: rgba(234, 234, 236, 0.9);
+    }
+
+    .project-members-panel__item {
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+    }
+
+    .project-members-panel__avatar {
+      background: rgba(var(--primary), 0.22);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+
+    .project-members-panel__name {
+      color: rgba(234, 234, 236, 0.95);
+    }
+
+    .project-add-member-row {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.04);
+
+      &.can-add {
+        &:hover {
+          border-color: rgba(var(--primary), 0.45);
+          background: rgba(var(--primary), 0.14);
+        }
+      }
+    }
+
+    .project-add-member-row__avatar {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(234, 234, 236, 0.9);
+    }
+
+    .project-add-member-row__meta {
+      h6 {
+        color: rgba(234, 234, 236, 0.95);
+      }
+
+      p {
+        color: rgba(185, 179, 166, 0.95);
+      }
+    }
+  }
 }
 
 @media (max-width: 1366px) {

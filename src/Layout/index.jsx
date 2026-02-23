@@ -1,7 +1,6 @@
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { Outlet, useNavigate } from "react-router-dom";
-import Footer from "./Footer";
 import ScrollArrow from "./Footer/ScrollArrow";
 import { useEffect, useState } from "react";
 import Customizer from "./Customizer";
@@ -87,10 +86,7 @@ const Layout = () => {
       {/*-- tap on top --*/}
       <ScrollArrow />
 
-      {/*-- Footer Section starts--*/}
-      <Footer />
       <Customizer showLauncher={false} />
-      {/*-- Footer Section ends--*/}
     </div>
   );
 };

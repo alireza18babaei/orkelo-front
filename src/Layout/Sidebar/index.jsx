@@ -213,15 +213,6 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
         <CompanySwitcher />
       </div>
 
-      <div className="menu-navs">
-        <span className="menu-previous">
-          <i className="ti ti-chevron-left" />
-        </span>
-        <span className="menu-next">
-          <i className="ti ti-chevron-right" />
-        </span>
-      </div>
-
       <Modal isOpen={createModalOpen} toggle={closeCreateModal} centered>
         <ModalHeader toggle={closeCreateModal}>Add Project</ModalHeader>
 

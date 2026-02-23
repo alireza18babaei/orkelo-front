@@ -264,7 +264,7 @@ const HeaderMenu = () => {
         <li className="header-theme-settings">
           <button
             type="button"
-            className="btn p-0 border-0 bg-transparent d-flex align-items-center head-icon"
+            className="btn icon-btn b-r-100 p-0 border-0  d-flex align-items-center head-icon"
             data-bs-toggle="offcanvas"
             data-bs-target="#customizerOptions"
             aria-controls="customizerOptions"

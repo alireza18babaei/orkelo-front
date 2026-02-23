@@ -112,7 +112,8 @@
 
 
 
-nav.dark-sidebar,body[class='ltr dark'] {
+nav.dark-sidebar,
+body.dark {
     --white: #333644;
     --black: #DCE2F0;
     --bodybg-color: #282a36;

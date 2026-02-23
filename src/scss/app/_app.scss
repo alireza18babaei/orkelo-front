@@ -6,8 +6,9 @@
         padding-left: $sidebar-width;
         // padding-top: 100px;
         padding-top: 45px;
-        padding-bottom: 47px;
+        padding-bottom: 0;
         width: 100%;
+        min-height: 100vh;
         height: 100%;
         transition: var(--app-transition);
         box-shadow: var(--box-shadow);

@@ -154,10 +154,97 @@
                 border-radius: var(--bs-border-radius);
             }
         }
+
+        .wallpaper-option{
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            >li{
+                list-style: none;
+                border: 1px solid rgba(var(--dark), 0.2);
+                border-radius: var(--bs-border-radius);
+                padding: 6px;
+                cursor: pointer;
+                background: var(--white);
+                overflow: hidden;
+                min-height: 64px;
+            }
+
+            &__btn{
+                width: 100%;
+                height: 100%;
+                border: 0;
+                padding: 0;
+                background: transparent;
+                border-radius: calc(var(--bs-border-radius) - 2px);
+                overflow: hidden;
+            }
+
+            img{
+                width: 100%;
+                height: 62px;
+                object-fit: cover;
+                display: block;
+            }
+
+            &__empty{
+                height: 62px;
+                width: 100%;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                color: rgba(var(--secondary), 1);
+                background: rgba(var(--secondary), 0.1);
+                border: 1px dashed rgba(var(--secondary), 0.35);
+                border-radius: calc(var(--bs-border-radius) - 2px);
+            }
+        }
     }
     .offcanvas-footer{
         padding: var(--bs-offcanvas-padding-y) var(--bs-offcanvas-padding-x);
         border-top: 1px solid var(--border_color);
+    }
+}
+
+.app-wrapper{
+    &.app-wrapper--wallpaper{
+        min-height: 100vh;
+        background-image:
+            linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.42)),
+            var(--app-wallpaper-image);
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-attachment: fixed;
+
+        .app-content{
+            background-color: transparent;
+        }
+
+        .app-content > .header-main{
+            background-color: var(--white);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+
+            &:before{
+                background-color: var(--white);
+            }
+        }
+
+        nav.dark-sidebar ~ .app-content > .header-main{
+            background-color: #333644;
+
+            &:before{
+                background-color: #333644;
+            }
+        }
+
+        > footer{
+            background-color: transparent;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
     }
 }
 

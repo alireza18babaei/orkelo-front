@@ -273,7 +273,7 @@
 
 // Dark css
 nav.dark-sidebar,
-body[class="ltr dark"] {
+body.dark {
     .text-light {
         color: var(--white) !important;
     }

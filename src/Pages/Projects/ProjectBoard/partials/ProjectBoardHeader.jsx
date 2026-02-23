@@ -30,10 +30,10 @@ const ProjectBoardHeader = ({
         </div>
 
         <div className="ms-auto d-flex">
-          <div className="text-light-info p-1 b-r-20">
+          <div className="bg-primary p-1 b-r-20">
             <button
               type="button"
-              className="btn icon-btn text-dark fs-3 b-r-100"
+              className="btn icon-btn text-white fs-3 b-r-100"
               onClick={onDelete}
               disabled={disableDelete}
               aria-label="Project delete"
@@ -43,7 +43,7 @@ const ProjectBoardHeader = ({
 
             <button
               type="button"
-              className="btn icon-btn text-dark fs-3 b-r-100"
+              className="btn icon-btn text-white fs-3 b-r-100"
               onClick={onEdit}
               disabled={disableEdit}
               aria-label="Project edit"
@@ -53,7 +53,7 @@ const ProjectBoardHeader = ({
 
             <button
               type="button"
-              className="btn icon-btn text-dark fs-3 b-r-100"
+              className="btn icon-btn text-white fs-3 b-r-100"
               onClick={onInfo}
               disabled={disableInfo}
               aria-label="Project info"

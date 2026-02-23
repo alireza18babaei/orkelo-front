@@ -56,7 +56,7 @@ nav {
     width: $sidebar-width;
     height: 100vh;
     display: inline-block;
-    box-shadow: 0 -0.8rem 1.2rem var(--light-gray);
+    box-shadow: none;
     position: fixed;
     background-color: var(--white);
     z-index: 1003;

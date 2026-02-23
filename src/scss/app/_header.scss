@@ -15,26 +15,26 @@ header {
   }
   &.header-main {
     position: fixed;
-    height: 80px;
+    height: 60px;
     top: 0;
     z-index: 1001;
     padding-left: calc(17rem + 20px);
     width: 100%;
     right: 0px;
     transition: var(--app-transition);
-    background-color: var(--bodybg-color);
+    background-color: var(--white);
 
     &:before {
       content: "";
       position: absolute;
       height: 15px;
       width: 100%;
-      background-color: var(--bodybg-color);
+      background-color: var(--white);
       top: -15px;
     }
     .container-fluid {
       padding: 0.7rem 1rem;
-      border-bottom: 1px dashed rgb(var(--secondary), 0.3);
+      border-bottom: none;
       .header-left {
         .app-icon-form {
           i {
@@ -484,6 +484,18 @@ header {
         & ~ .hidden-massage {
           display: none;
         }
+      }
+    }
+  }
+}
+
+nav.dark-sidebar {
+  ~ .app-content {
+    .header-main {
+      background-color: #333644;
+
+      &:before {
+        background-color: #333644;
       }
     }
   }

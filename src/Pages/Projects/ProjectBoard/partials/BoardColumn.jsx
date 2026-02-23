@@ -36,7 +36,7 @@ const BoardColumn = ({
   return (
     <div
       ref={innerRef}
-      className={`board-column app-scroll  box-shadow-4 ${className}`}
+      className={`board-column box-shadow-4 ${className}`}
       style={style}
       {...rest}
     >
