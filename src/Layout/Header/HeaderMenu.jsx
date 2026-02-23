@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   weatherData,
   initialCartItems,
@@ -25,6 +25,9 @@ const HeaderMenu = () => {
   const dispatch = useDispatch();
   const [cartItems, setCartItems] = useState(initialCartItems);
   const user = useSelector(s=> s.auth.user);
+  const activeCompanyIdFromContext = useSelector(
+    (s) => s.companyContext?.activeCompanyId ?? null,
+  );
   const userAvatar = useMemo(() => {
     const raw =
       user?.avatar ??
@@ -48,6 +51,20 @@ const HeaderMenu = () => {
   const [companyMembersModalOpen, setCompanyMembersModalOpen] = useState(false);
   const [companyAddMemberModalOpen, setCompanyAddMemberModalOpen] =
     useState(false);
+
+  const userCompanyId = user?.company_id ?? null;
+  const activeCompanyId = activeCompanyIdFromContext ?? user?.active_company_id ?? null;
+  const canManageCurrentCompany =
+    userCompanyId != null &&
+    activeCompanyId != null &&
+    String(userCompanyId) === String(activeCompanyId);
+
+  useEffect(() => {
+    if (canManageCurrentCompany) return;
+    setCompanyActionOpen(false);
+    setCompanyMembersModalOpen(false);
+    setCompanyAddMemberModalOpen(false);
+  }, [canManageCurrentCompany]);
 
 
   const handleRemoveItem = (id) => {
@@ -257,31 +274,33 @@ const HeaderMenu = () => {
           </button>
         </li>
 
-        <li className="header-company">
-          <div ref={companyMenuRef} className="position-relative">
-            <button
-              type="button"
-              className="btn company-menu-trigger"
-              onClick={() => setCompanyActionOpen((v) => !v)}
-              aria-label="Company actions"
-            >
-              <i className="ph ph-buildings"></i>
-              <span className="company-menu-trigger__text">Company</span>
-              <i
-                className={`ph ${
-                  companyActionOpen ? "ph-caret-up" : "ph-caret-down"
-                } company-menu-trigger__caret`}
-              ></i>
-            </button>
+        {canManageCurrentCompany ? (
+          <li className="header-company">
+            <div ref={companyMenuRef} className="position-relative">
+              <button
+                type="button"
+                className="btn company-menu-trigger"
+                onClick={() => setCompanyActionOpen((v) => !v)}
+                aria-label="Company actions"
+              >
+                <i className="ph ph-buildings"></i>
+                <span className="company-menu-trigger__text">Company</span>
+                <i
+                  className={`ph ${
+                    companyActionOpen ? "ph-caret-up" : "ph-caret-down"
+                  } company-menu-trigger__caret`}
+                ></i>
+              </button>
 
-            <ActionDropdown
-              open={companyActionOpen}
-              onToggle={setCompanyActionOpen}
-              rootRef={companyMenuRef}
-              actions={companyMenuActions}
-            />
-          </div>
-        </li>
+              <ActionDropdown
+                open={companyActionOpen}
+                onToggle={setCompanyActionOpen}
+                rootRef={companyMenuRef}
+                actions={companyMenuActions}
+              />
+            </div>
+          </li>
+        ) : null}
 
         <li className="header-profile">
           <a
@@ -376,23 +395,27 @@ const HeaderMenu = () => {
         </li>
       </ul>
 
-      <CompanyMembersModal
-        isOpen={companyMembersModalOpen}
-        onClose={() => setCompanyMembersModalOpen(false)}
-        members={companyMembers}
-        status={companyMembersStatus}
-        error={companyMembersError}
-        onReload={handleReloadCompanyMembers}
-        onDeleteMember={handleDeleteCompanyMember}
-        removingByUserId={companyMembersRemovingByUserId}
-      />
+      {canManageCurrentCompany ? (
+        <CompanyMembersModal
+          isOpen={companyMembersModalOpen}
+          onClose={() => setCompanyMembersModalOpen(false)}
+          members={companyMembers}
+          status={companyMembersStatus}
+          error={companyMembersError}
+          onReload={handleReloadCompanyMembers}
+          onDeleteMember={handleDeleteCompanyMember}
+          removingByUserId={companyMembersRemovingByUserId}
+        />
+      ) : null}
 
-      <AddCompanyMemberModal
-        isOpen={companyAddMemberModalOpen}
-        onClose={() => setCompanyAddMemberModalOpen(false)}
-        onSubmit={handleSubmitAddCompanyMember}
-        isSubmitting={companyMemberAddLoading}
-      />
+      {canManageCurrentCompany ? (
+        <AddCompanyMemberModal
+          isOpen={companyAddMemberModalOpen}
+          onClose={() => setCompanyAddMemberModalOpen(false)}
+          onSubmit={handleSubmitAddCompanyMember}
+          isSubmitting={companyMemberAddLoading}
+        />
+      ) : null}
     </>
   );
 };

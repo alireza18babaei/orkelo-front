@@ -1,10 +1,14 @@
 import * as yup from "yup";
 
 export const PROJECT_STATUS = ["active", "deactive"];
+export const PROJECT_VISIBILITY = ["public", "private"];
 
 export const updateProjectSchema = yup.object({
   name: yup.string().nullable(),
-  description: yup.string().nullable(),
+  visibility: yup
+    .string()
+    .oneOf(PROJECT_VISIBILITY, "Visibility is not valid")
+    .required("Visibility is required"),
   image: yup
     .mixed()
     .nullable()

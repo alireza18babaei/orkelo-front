@@ -5,6 +5,7 @@ import projectDetailsReducer from "./projects/projectDetailsSlice";
 import projectColumnsReducer from "./projects/projectColumnsSlice";
 import projectMembersReducer from "./projects/projectMembersSlice";
 import companyMembersReducer from "./company/companyMembersSlice";
+import companyContextReducer from "./company/companyContextSlice";
 import tagsReducer from "./tags/tagsSlice";
 import commentsReducer from "./tasks/commentSlice";
 import taskPeopleReducer from "./tasks/taskPeopleSlice";
@@ -18,6 +19,7 @@ export const store = configureStore({
     projectColumns: projectColumnsReducer,
     projectMembers: projectMembersReducer,
     companyMembers: companyMembersReducer,
+    companyContext: companyContextReducer,
     tags: tagsReducer,
     comments: commentsReducer,
     taskPeople: taskPeopleReducer,

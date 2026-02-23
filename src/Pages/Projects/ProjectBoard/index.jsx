@@ -46,9 +46,44 @@ import ProjectAddMemberModal from "./partials/ProjectAddMemberModal";
 
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { updateProjectSchema } from "../../../validation/project/updateProject.schema";
+import {
+  PROJECT_VISIBILITY,
+  updateProjectSchema,
+} from "../../../validation/project/updateProject.schema";
 
 const PROJECT_STATUS = ["active", "deactive"];
+
+const normalizeVisibilityValue = (value) => {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "private" || normalized === "public") return normalized;
+    if (["1", "true", "yes", "on"].includes(normalized)) return "private";
+    if (["0", "false", "no", "off"].includes(normalized)) return "public";
+    return null;
+  }
+
+  if (typeof value === "boolean") return value ? "private" : "public";
+  if (typeof value === "number") return value === 1 ? "private" : "public";
+  return null;
+};
+
+const resolveProjectVisibility = (project) => {
+  if (!project || typeof project !== "object") return PROJECT_VISIBILITY[0];
+
+  const candidates = [
+    project.visibility,
+    project.is_private,
+    project.isPrivate,
+    project.private,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeVisibilityValue(candidate);
+    if (normalized) return normalized;
+  }
+
+  return PROJECT_VISIBILITY[0];
+};
 
 const toSortableColumnPosition = (column) => {
   const n = Number(column?.position);
@@ -254,6 +289,7 @@ const ProjectBoard = () => {
       name: "",
       description: "",
       status: "active",
+      visibility: PROJECT_VISIBILITY[0],
       image: null,
     },
   });
@@ -262,6 +298,10 @@ const ProjectBoard = () => {
   const { ref: statusRef, ...statusField } = register("status");
   const { ref: descriptionRef, ...descriptionField } =
     register("description");
+
+  useEffect(() => {
+    register("visibility");
+  }, [register]);
 
   const {
     handleSubmit: handleColumnSubmit,
@@ -290,6 +330,7 @@ const ProjectBoard = () => {
     name: p?.name || "",
     description: p?.description || "",
     status: p?.status || "active",
+    visibility: resolveProjectVisibility(p),
     image: null,
   });
 
@@ -344,6 +385,7 @@ const ProjectBoard = () => {
 
   const isFormReady = !!project && !loading;
   const selectedProjectImage = watch("image");
+  const selectedVisibility = watch("visibility");
 
   const getBackendOrigin = () => {
     const apiBase = import.meta.env.VITE_API_BASE_URL;
@@ -393,6 +435,7 @@ const ProjectBoard = () => {
         fd.append("name", values.name ?? "");
         fd.append("description", values.description ?? "");
         fd.append("status", values.status ?? "active");
+        fd.append("visibility", values.visibility ?? PROJECT_VISIBILITY[0]);
         fd.append("image", values.image);
         payload = fd;
       } else {
@@ -400,6 +443,7 @@ const ProjectBoard = () => {
           name: values.name ?? "",
           description: values.description ?? "",
           status: values.status ?? "active",
+          visibility: values.visibility ?? PROJECT_VISIBILITY[0],
         };
       }
 
@@ -770,6 +814,13 @@ const ProjectBoard = () => {
         descriptionRef={descriptionRef}
         setValue={setValue}
         statusOptions={PROJECT_STATUS}
+        visibilityValue={selectedVisibility}
+        onVisibilityChange={(visibility) =>
+          setValue("visibility", visibility, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
         currentImageSrc={currentProjectImageSrc}
         selectedImageFile={selectedProjectImage}
         onClearSelectedImage={() =>

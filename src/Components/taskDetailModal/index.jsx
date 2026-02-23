@@ -13,6 +13,31 @@ import TaskAttachments from "./TaskAttachments";
 import TaskTagsDropdown from "./TaskTagsDropdown";
 import TaskAssigneeDropdown from "./TaskAssigneeDropdown";
 import TaskWatchersDropdown from "./TaskWatchersDropdown";
+import ChecklistTree from "./ChecklistTree";
+
+const sortChecklistByPosition = (items = []) =>
+  [...(items || [])].sort((a, b) => {
+    const aPos = Number(a?.position ?? 0);
+    const bPos = Number(b?.position ?? 0);
+    if (aPos !== bPos) return aPos - bPos;
+    return String(a?.id ?? "").localeCompare(String(b?.id ?? ""));
+  });
+
+const arrayMove = (list, from, to) => {
+  const next = [...(list || [])];
+  if (
+    from === to ||
+    from < 0 ||
+    to < 0 ||
+    from >= next.length ||
+    to >= next.length
+  ) {
+    return next;
+  }
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+};
 
 const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
   const propTask = task || {};
@@ -140,7 +165,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
   const isSaveCombo = (e) => e.key === "Enter" && !e.shiftKey;
 
   const normalizeTree = (items) =>
-    (items || []).map((item) => ({
+    sortChecklistByPosition(items).map((item) => ({
       ...item,
       text: item.text ?? "",
       _savedText: item.text ?? "",
@@ -159,13 +184,51 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
   const addChildToTree = (items, parentId, child) =>
     items.map((item) => {
       if (item.id === parentId) {
-        return { ...item, children: [...(item.children || []), child] };
+        const nextChildren = sortChecklistByPosition([
+          ...(item.children || []),
+          child,
+        ]).map((c, idx) => ({ ...c, position: idx + 1 }));
+        return { ...item, children: nextChildren };
       }
       if (item.children?.length) {
         return { ...item, children: addChildToTree(item.children, parentId, child) };
       }
       return item;
     });
+
+  const reorderChecklistSiblings = (items, parentId, fromIndex, toIndex) => {
+    const withPositions = (siblings, ownerParentId) =>
+      arrayMove(siblings || [], fromIndex, toIndex).map((item, idx) => ({
+        ...item,
+        position: idx + 1,
+        parent_item_id: ownerParentId ?? null,
+      }));
+
+    if (parentId == null) {
+      return withPositions(items || [], null);
+    }
+
+    return (items || []).map((item) => {
+      if (String(item?.id) === String(parentId)) {
+        return {
+          ...item,
+          children: withPositions(item.children || [], item.id),
+        };
+      }
+      if (item?.children?.length) {
+        return {
+          ...item,
+          children: reorderChecklistSiblings(
+            item.children,
+            parentId,
+            fromIndex,
+            toIndex,
+          ),
+        };
+      }
+      return item;
+    });
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -565,161 +628,16 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
     }
   };
 
-  const renderChecklist = (items, depth = 0, parentCompleted = false) => {
-    return (items || []).map((item, index) => {
-      const isCompleted = parentCompleted || !!item.is_completed;
-      return (
-      <div
-        key={item.id}
-        className={`mb-2 ${
-          depth === 0 ? "border rounded-3 p-2" : ""
-        } ${
-          item.is_completed && depth === 0 ? "border border-success" : ""
-        }`}
-      >
-        <div
-          className={`d-flex align-items-start gap-2 ps-3 ${depth ? "ps-6" : ""}`}
-          style={depth ? { marginLeft: 8 } : undefined}
-          onMouseEnter={() => setHoveredChecklistId(item.id)}
-          onMouseLeave={() => setHoveredChecklistId(null)}
-        >
-          {depth > 0 ? (
-            <span className="d-inline-flex align-items-center justify-content-center mt-1 text-muted small">
-              {index + 1}.
-            </span>
-          ) : null}
-          {depth === 0 ? (
-            <input
-              type="checkbox"
-              className="form-check-input mt-1"
-              checked={!!item.is_completed}
-              onChange={(e) => toggleChecklistItem(item, e.target.checked)}
-              disabled={checklistBusyId === item.id}
-            />
-          ) : null}
-          <div className="flex-grow-1">
-            <textarea
-              className={`form-control border-0 shadow-none px-0 py-0 small checklist-textarea ${
-                isCompleted ? "text-decoration-line-through text-muted" : ""
-              }`}
-              rows="1"
-              value={item.text ?? ""}
-              onChange={(e) => {
-                const value = e.target.value;
-                setChecklistItems((prev) =>
-                  updateItemInTree(prev, item.id, (i) => ({ ...i, text: value })),
-                );
-              }}
-              onBlur={(e) => updateChecklistText(item, e.target.value)}
-              onKeyDown={(e) => {
-                if (isSaveCombo(e)) {
-                  e.preventDefault();
-                  updateChecklistText(item, e.currentTarget.value);
-                  e.currentTarget.blur();
-                }
-              }}
-              onInput={(e) => {
-                e.currentTarget.style.height = "auto";
-                e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
-              }}
-              style={{ resize: "none", overflow: "hidden", height: "auto" }}
-              disabled={checklistBusyId === item.id}
-            />
-          </div>
-          <button
-            type="button"
-            className="btn icon-btn b-r-100 text-muted"
-            onClick={() => deleteChecklistItem(item)}
-            disabled={checklistBusyId === item.id}
-            style={{
-              opacity: hoveredChecklistId === item.id ? 1 : 0,
-              transition: "opacity 120ms ease",
-            }}
-          >
-            <i className="fa-solid fa-times"></i>
-          </button>
-        </div>
-        {item.children?.length ? (
-          <div className="mt-2">
-            {renderChecklist(item.children, depth + 1, isCompleted)}
-          </div>
-        ) : null}
-        {depth === 0 ? (
-          <div className="mt-2 ps-3">
-            <button
-              type="button"
-              className="btn px-0 text-info small f-s-12"
-              onClick={() =>
-                setSubInputById((prev) => ({
-                  ...prev,
-                  [item.id]: prev[item.id] ?? "",
-                }))
-              }
-            >
-              Add sub item
-            </button>
-            {subInputById[item.id] !== undefined ? (
-              <div className="mt-1">
-                <textarea
-                  className="form-control autogrow-textarea"
-                  rows="1"
-                  placeholder="Write a sub item..."
-                  value={subInputById[item.id] || ""}
-                  onChange={(e) =>
-                    setSubInputById((prev) => ({
-                      ...prev,
-                      [item.id]: e.target.value,
-                    }))
-                  }
-	                  onBlur={async () => {
-	                    if (skipSubBlurByIdRef.current?.[item.id]) {
-	                      delete skipSubBlurByIdRef.current[item.id];
-	                      return;
-	                    }
-	                    const text = (subInputById[item.id] || "").trim();
-	                    if (text) await createChecklistItem({ text, parentId: item.id });
-	                    setSubInputById((prev) => {
-	                      const next = { ...prev };
-	                      delete next[item.id];
-                      return next;
-                    });
-                  }}
-	                  onKeyDown={async (e) => {
-	                    if (e.key === "Enter" && !e.shiftKey) {
-	                      e.preventDefault();
-	                      skipSubBlurByIdRef.current[item.id] = true;
-	                      const text = (subInputById[item.id] || "").trim();
-	                      if (text) await createChecklistItem({ text, parentId: item.id });
-	                      setSubInputById((prev) => {
-	                        const next = { ...prev };
-	                        delete next[item.id];
-                        return next;
-                      });
-	                    } else if (e.key === "Escape") {
-	                      e.preventDefault();
-	                      skipSubBlurByIdRef.current[item.id] = true;
-	                      setSubInputById((prev) => {
-	                        const next = { ...prev };
-	                        delete next[item.id];
-	                        return next;
-	                      });
-	                    }
-	                  }}
-                  onInput={(e) => {
-                    e.currentTarget.style.height = "auto";
-                    e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
-                  }}
-                  style={{ resize: "none", overflow: "hidden", height: "auto" }}
-                  autoFocus
-                  disabled={checklistBusyId === item.id}
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+  const handleChecklistReorder = (parentId, sourceIndex, destinationIndex) => {
+    setChecklistItems((prev) =>
+      reorderChecklistSiblings(prev, parentId, sourceIndex, destinationIndex),
     );
-    });
+  };
+
+  const handleChecklistTextChange = (itemId, value) => {
+    setChecklistItems((prev) =>
+      updateItemInTree(prev, itemId, (i) => ({ ...i, text: value })),
+    );
   };
 
   return (
@@ -849,7 +767,23 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
               </div>
 
               <div className="py-3">
-                <div className="mt-2">{renderChecklist(checklistItems)}</div>
+                <div className="mt-2">
+                  <ChecklistTree
+                    items={checklistItems}
+                    checklistBusyId={checklistBusyId}
+                    subInputById={subInputById}
+                    setSubInputById={setSubInputById}
+                    skipSubBlurByIdRef={skipSubBlurByIdRef}
+                    hoveredChecklistId={hoveredChecklistId}
+                    setHoveredChecklistId={setHoveredChecklistId}
+                    onToggleChecklistItem={toggleChecklistItem}
+                    onUpdateChecklistText={updateChecklistText}
+                    onDeleteChecklistItem={deleteChecklistItem}
+                    onCreateChecklistItem={createChecklistItem}
+                    onChangeItemText={handleChecklistTextChange}
+                    onReorderChecklist={handleChecklistReorder}
+                  />
+                </div>
                 <button
                   type="button"
                   className="btn px-2 b-r-20 d-flex align-items-center gap-2 text-primary"

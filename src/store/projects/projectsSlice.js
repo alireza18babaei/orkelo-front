@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { deleteProjectThunk, updateProjectThunk } from "./projectDetailsSlice";
+import { logoutThunk } from "../auth/authSlice";
 import api from "../../api/axios";
 import { getErrorMessage } from "../../utils/getError";
 
@@ -30,6 +31,7 @@ export const createProjectThunk = createAsyncThunk(
 
 const initialState = {
   items: [],
+  ownerUserId: null,
   loading: false,
   error: null,
   status : "idle"
@@ -45,16 +47,32 @@ export const projectsSlice = createSlice({
     clearProjectState: () => initialState
   },
   extraReducers: (builder) => {
-    builder.addCase(getProjectsThunk.pending, (state) => {
+    builder.addCase(getProjectsThunk.pending, (state, action) => {
+      const nextUserId = action.meta?.arg?.userId ?? state.ownerUserId ?? null;
+      const isUserSwitched =
+        state.ownerUserId != null &&
+        nextUserId != null &&
+        String(state.ownerUserId) !== String(nextUserId);
+
       state.loading = true;
+      state.status = "loading";
       state.error = null;
+      state.ownerUserId = nextUserId;
+
+      if (isUserSwitched) {
+        state.items = [];
+      }
     });
     builder.addCase(getProjectsThunk.fulfilled, (state, action) => {
+      const nextUserId = action.meta?.arg?.userId ?? state.ownerUserId ?? null;
+      state.ownerUserId = nextUserId;
       state.items = action.payload?.data || [];
       state.loading = false;
+      state.status = "succeeded";
     });
     builder.addCase(getProjectsThunk.rejected, (state, action)=> {
       state.loading = false;
+      state.status = "failed";
       state.error = action.payload?.message || action.payload || "Fetching projects failed"
     })
     builder.addCase(createProjectThunk.fulfilled, (state, action) => {
@@ -80,6 +98,8 @@ export const projectsSlice = createSlice({
         (p) => String(p.id) !== String(deletedId)
       );
     })
+    builder.addCase(logoutThunk.fulfilled, () => initialState)
+    builder.addCase(logoutThunk.rejected, () => initialState)
   },
 });
 

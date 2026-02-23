@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Scrollbar from "simplebar-react";
 import { Link } from "react-router-dom";
 import MenuItem from "./MenuItem";
+import CompanySwitcher from "./CompanySwitcher";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Button,
@@ -16,7 +17,11 @@ import {
 } from "reactstrap";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { updateProjectSchema, PROJECT_STATUS } from "../../validation/project/updateProject.schema";
+import {
+  updateProjectSchema,
+  PROJECT_STATUS,
+  PROJECT_VISIBILITY,
+} from "../../validation/project/updateProject.schema";
 import { createProjectThunk } from "../../store/projects/projectsSlice";
 import { alertSuccess, toastError } from "../../utils/sweetAlert";
 
@@ -33,6 +38,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     register,
     reset,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(updateProjectSchema),
@@ -40,6 +46,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
       name: "",
       description: "",
       status: "active",
+      visibility: PROJECT_VISIBILITY[0],
       image: null,
     },
   });
@@ -49,12 +56,19 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   const { ref: descriptionRef, ...descriptionField } =
     register("description");
 
+  useEffect(() => {
+    register("visibility");
+  }, [register]);
+
   const buildFormValues = () => ({
     name: "",
     description: "",
     status: "active",
+    visibility: PROJECT_VISIBILITY[0],
     image: null,
   });
+
+  const selectedVisibility = watch("visibility");
 
   useEffect(() => {
     if (!createModalOpen) return;
@@ -73,6 +87,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
         fd.append("name", values.name ?? "");
         fd.append("description", values.description ?? "");
         fd.append("status", values.status ?? "active");
+        fd.append("visibility", values.visibility ?? PROJECT_VISIBILITY[0]);
         fd.append("image", values.image);
         payload = fd;
       } else {
@@ -80,6 +95,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
           name: values.name ?? "",
           description: values.description ?? "",
           status: values.status ?? "active",
+          visibility: values.visibility ?? PROJECT_VISIBILITY[0],
         };
       }
 
@@ -193,6 +209,10 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
         </ul>
       </Scrollbar>
 
+      <div className="sidebar-company-switcher-wrap">
+        <CompanySwitcher />
+      </div>
+
       <div className="menu-navs">
         <span className="menu-previous">
           <i className="ti ti-chevron-left" />
@@ -263,6 +283,38 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
                 invalid={!!errors.description}
                 disabled={isSubmitting}
               />
+            </FormGroup>
+
+            <FormGroup className="main-switch">
+              <div className="switch-info swich-size2 my-3">
+                <input
+                  type="checkbox"
+                  id="project-visibility-create"
+                  className="toggle"
+                  checked={selectedVisibility === "private"}
+                  onChange={(e) =>
+                    setValue(
+                      "visibility",
+                      e.target.checked ? "private" : PROJECT_VISIBILITY[0],
+                      {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      },
+                    )
+                  }
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="project-visibility-create">
+                  {selectedVisibility === "private"
+                    ? "Private Project"
+                    : "Public Project"}
+                </label>
+              </div>
+              {errors.visibility ? (
+                <div className="invalid-feedback d-block">
+                  {errors.visibility.message}
+                </div>
+              ) : null}
             </FormGroup>
           </ModalBody>
 

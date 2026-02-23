@@ -22,6 +22,8 @@ const ProjectEditModal = ({
   nameRef,
   statusField,
   statusRef,
+  visibilityValue,
+  onVisibilityChange,
   descriptionField,
   descriptionRef,
   setValue,
@@ -95,7 +97,7 @@ const ProjectEditModal = ({
                   {s}
                 </option>
               ))}
-            </Input>
+              </Input>
           </FormGroup>
 
           <FormGroup>
@@ -161,6 +163,31 @@ const ProjectEditModal = ({
               invalid={!!errors.description}
               disabled={!isFormReady}
             />
+          </FormGroup>
+
+          <FormGroup className="main-switch">
+            <div className="switch-info swich-size2 my-3">
+              <input
+                type="checkbox"
+                id="project-visibility-edit"
+                className="toggle"
+                checked={visibilityValue === "private"}
+                onChange={(e) =>
+                  onVisibilityChange?.(e.target.checked ? "private" : "public")
+                }
+                disabled={!isFormReady || isSubmitting}
+              />
+              <label htmlFor="project-visibility-edit">
+                {visibilityValue === "private"
+                  ? "Private Project"
+                  : "Public Project"}
+              </label>
+            </div>
+            {errors.visibility ? (
+              <div className="invalid-feedback d-block">
+                {errors.visibility.message}
+              </div>
+            ) : null}
           </FormGroup>
         </ModalBody>
 
