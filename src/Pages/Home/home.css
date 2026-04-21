@@ -1,5 +1,5 @@
 .home-dashboard {
-  padding: 1.2rem 0.25rem 1rem;
+  padding: 0 0.25rem 1rem;
   max-width: 70%;
   margin-inline: auto;
   min-height: 100vh;
@@ -8,7 +8,6 @@
 .home-dashboard__header {
   margin-bottom: 1.25rem;
   text-align: center;
-  margin-top: 5em;
   padding: 1.5em;
   background-color:rgba(var(--primary));
   border-radius: 1em;
@@ -64,7 +63,34 @@
   padding: 1rem;
   box-shadow: 0 10px 24px rgba(var(--dark), 0.05);
 }
+.tracker-panel{
+  margin-top: 1.25rem;
+  padding: 1.1rem;
+}
 
+.tracker-panel__title{
+  margin-bottom: 1rem;
+  color: rgba(var(--dark), 0.94);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.tracker-panel__state{
+  padding: 0.35rem 0 0.5rem;
+}
+
+.tracker-panel__message{
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.tracker-panel__message--danger{
+  color: rgba(var(--danger), 1);
+}
+
+.tracker-panel__message--warning{
+  color: rgba(var(--warning), 1);
+}
 .home-panel__head {
   margin-bottom: 0.8rem;
 }
@@ -98,6 +124,9 @@
 
 .home-list__title {
   color: rgba(var(--dark), 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .home-list__meta {
@@ -140,23 +169,61 @@ nav.dark-sidebar ~ .app-content .home-list__item {
 }
 
 .tracker__homePage{
+  display: grid;
+  gap: 0.85rem;
   transition: background-color .3s ease, border-color .3s ease;
-  border: 2px solid rgba(var(--secondary), .1);
+  border: 1px solid rgba(var(--secondary), .14);
+  background: rgba(255, 255, 255, 0.3);
+  padding: 0.8rem;
 }
 
-.tracker__homePage:hover{
-  background-color: rgba(var(--primary), 0.2);
-  border-color: rgba(var(--primary));
+.tracker__homeLink{
+  text-decoration: none;
+  color: inherit;
+}
+
+.tracker__homeCard{
+  border: 1px solid rgba(var(--secondary), 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 10px 24px rgba(var(--dark), 0.04);
+  transition: background-color .3s ease, border-color .3s ease, transform .3s ease, box-shadow .3s ease;
+}
+
+.tracker__homeLink:hover .tracker__homeCard{
+  background-color: rgba(var(--primary), 0.12);
+  border-color: rgba(var(--primary), 0.34);
+  box-shadow: 0 14px 28px rgba(var(--primary), 0.12);
+  transform: translateY(-1px);
+}
+
+.trackerBadge__homePage{
+  margin-bottom: 0.9rem;
+  color: rgba(var(--primary), 1);
+  background: rgba(var(--primary), 0.12);
+  border: 1px solid rgba(var(--primary), 0.18);
 }
 
 .trackerDetail__homePage{
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.9rem;
+  margin-bottom: 0.55rem;
+}
+
+.trackerDetail__homePage:last-child{
+  margin-bottom: 0;
 }
 
 .trackerLabel__homePage{
-  font-weight: bold;
+  font-weight: 700;
+  color: rgba(var(--secondary), 0.95);
+}
+
+.trackerValue__homePage{
+  color: rgba(var(--dark), 0.94);
+  text-align: end;
 }
 
 @media (max-width: 1200px) {
@@ -165,4 +232,43 @@ nav.dark-sidebar ~ .app-content .home-list__item {
     row-gap: 1rem;
     column-gap: 0;
   }
+}
+
+body.dark .tracker-panel__title,
+body.dark .trackerValue__homePage,
+nav.dark-sidebar ~ .app-content .tracker-panel__title,
+nav.dark-sidebar ~ .app-content .trackerValue__homePage {
+  color: rgba(234, 234, 236, 0.96);
+}
+
+body.dark .trackerLabel__homePage,
+nav.dark-sidebar ~ .app-content .trackerLabel__homePage {
+  color: rgba(185, 179, 166, 0.94);
+}
+
+body.dark .tracker__homePage,
+nav.dark-sidebar ~ .app-content .tracker__homePage {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body.dark .tracker__homeCard,
+nav.dark-sidebar ~ .app-content .tracker__homeCard {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+}
+
+body.dark .tracker__homeLink:hover .tracker__homeCard,
+nav.dark-sidebar ~ .app-content .tracker__homeLink:hover .tracker__homeCard {
+  background: rgba(var(--primary), 0.14);
+  border-color: rgba(var(--primary), 0.38);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.22);
+}
+
+body.dark .trackerBadge__homePage,
+nav.dark-sidebar ~ .app-content .trackerBadge__homePage {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(var(--primary), 0.18);
+  border-color: rgba(var(--primary), 0.34);
 }

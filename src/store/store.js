@@ -17,6 +17,11 @@ import archivedTasksReducer from './projects/projectArchivedTasksSlice';
 import deletedTaskReducer from "./projects/projectDeletedTasksSlice";
 import taskExcludedPeopleReducer from "./tasks/taskExcludedPeopleSlice.js";
 import taskVisibleForReducer from "./tasks/taskVisibleForSlice";
+import dailyReportsReducer from "./Profile/DailyReports/dailyReports.slice";
+import myProjectsreducer from "./Profile/MyProjects/myProjects.slice.js";
+import quickAccessReducer from "./Profile/QuickAccess/quickAccess.slice";
+import fileManagerProjectsReducer from "./FileManager/projects/project.slice.js";
+import projectReportsReducer from "./FileManager/Reports/projectReports.slice.js";
 
 export const store = configureStore({
   reducer: {
@@ -38,5 +43,10 @@ export const store = configureStore({
     deletedTaskSlice: deletedTaskReducer,
     taskExcludedPeople: taskExcludedPeopleReducer,
     taskVisibleFor: taskVisibleForReducer,
+    dailyReports: dailyReportsReducer,
+    myProjects: myProjectsreducer,
+    quickAccess: quickAccessReducer,
+    fileManagerProjects: fileManagerProjectsReducer,
+    projectReports: projectReportsReducer
   }
 })

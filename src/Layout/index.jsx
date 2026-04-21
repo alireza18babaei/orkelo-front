@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import ScrollArrow from "./Footer/ScrollArrow";
 import { useState } from "react";
 import Customizer from "./Customizer";
+import AppUpdateModal from "../Components/AppUpdateModal";
 
 const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -77,6 +78,8 @@ const Layout = () => {
         </main>
         {/*-- Body main section ends --*/}
       </div>
+
+      <AppUpdateModal />
 
       {/*-- tap on top --*/}
       <ScrollArrow />

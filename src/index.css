@@ -25,3 +25,56 @@ body {
 .capitalized {
   text-transform: capitalize;
 }
+
+.bg-complete-progress {
+  box-flex-group: rgb(1, 190, 1);
+}
+
+.color-orkelo {
+  color: #FF4463 !important;
+}
+.bg-orkelo {
+  background-color: #FF4463 !important;
+  color: white;
+}
+.bg-orkelo:hover{
+  background-color: #E3455F !important;
+  color: white !important;
+}
+.signin-btn{
+  position: absolute;
+  max-width: 100px;
+  width: 100%;
+  top: 2em;
+  right: 0;
+  border: none;
+  padding: .8em 1em;
+  border-radius: 1.2em 0 0 1.2em;
+  font-weight: 700;
+}
+.signup-btn{
+  position: absolute;
+  max-width: 100px;
+  width: 100%;
+  top: 6em;
+  right: 0;
+  border: none;
+  padding: .8em 1em;
+  border-radius: 1.2em 0 0 1.2em;
+  font-weight: 700;
+}
+
+.two-line-ellipsis {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.one-line-ellipsis {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

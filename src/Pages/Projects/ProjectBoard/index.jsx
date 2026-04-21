@@ -25,6 +25,7 @@ import {
   addProjectMemberThunk,
   deleteProjectMemberThunk,
   getProjectMembersThunk,
+  updateProjectMemberRoleThunk,
 } from "../../../store/projects/projectMembersSlice";
 import { getCompanyMembersThunk } from "../../../store/company/companyMembersSlice";
 
@@ -32,11 +33,12 @@ import ProjectDetailsModal from "../../../Components/projectDetailModal";
 import TaskDetailModal from "../../../Components/taskDetailModal";
 import {
   alertConfirm,
-  alertSuccess,
+  alertTextConfirm,
   toastError,
   toastInfo,
   toastSuccess,
 } from "../../../utils/sweetAlert";
+import { resolvePublicMediaUrl } from "../../../utils/mediaUrl";
 import ProjectBoardHeader from "./partials/ProjectBoardHeader";
 import ProjectEditModal from "./partials/ProjectEditModal";
 import ProjectBoardColumns from "./partials/ProjectBoardColumns";
@@ -130,6 +132,7 @@ const ProjectBoard = () => {
     status: membersStatus,
     addingByEmail: projectMemberAddingByEmail,
     removingByMemberId: projectMemberRemovingByMemberId,
+    roleUpdatingByMemberId: projectMemberRoleUpdatingByMemberId,
   } = useSelector((s) => s.projectMembers);
   const {
     items: companyMembers,
@@ -379,7 +382,6 @@ const ProjectBoard = () => {
       toastInfo("Failed to load project details");
     }
   };
-
   const closeEditModal = () => setEditModal(false);
   const openCreateColumnModal = () => {
     setEditingColumn(null);
@@ -405,30 +407,13 @@ const ProjectBoard = () => {
   const selectedProjectImage = watch("image");
   const selectedVisibility = watch("visibility");
 
-  const getBackendOrigin = () => {
-    const apiBase = import.meta.env.VITE_API_BASE_URL;
-    try {
-      return new URL(String(apiBase)).origin;
-    } catch {
-      return "";
-    }
-  };
-
   const resolveProjectImageSrc = (p) => {
     const raw = p?.image ?? null;
 
     const str = String(raw || "").trim();
     if (!str) return "";
     if (/^https?:\/\//i.test(str)) return str;
-
-    const origin = getBackendOrigin();
-    if (!origin) return str;
-
-    const cleaned = str.replace(/^\/+/, "");
-    const storagePath = cleaned.startsWith("project_images/")
-      ? `storage/${cleaned}`
-      : cleaned;
-    return `${origin}/${storagePath}`;
+    return resolvePublicMediaUrl(str) || str;
   };
 
   const currentProjectImageSrc = useMemo(
@@ -461,7 +446,7 @@ const ProjectBoard = () => {
 
       await dispatch(updateProjectThunk({ id: project.id, payload })).unwrap();
 
-      alertSuccess();
+      toastSuccess("Update successful");
       closeEditModal();
 
       dispatch(getProjectDetailsThunk(String(project.id)));
@@ -489,7 +474,7 @@ const ProjectBoard = () => {
           }),
         ).unwrap();
       }
-      alertSuccess();
+      toastSuccess("Column Created");
       closeColumnModal();
     } catch (err) {
       const msg = err?.message || err?.data?.message || "Column save failed";
@@ -514,7 +499,7 @@ const ProjectBoard = () => {
           columnId: column.id,
         }),
       ).unwrap();
-      alertSuccess();
+      toastSuccess("Column Deleted");
     } catch (err) {
       const msg = err?.message || err?.data?.message || "Delete failed";
       toastError(msg);
@@ -554,21 +539,40 @@ const ProjectBoard = () => {
 
   const handleProjectDelete = async () => {
     const projectId = project?.id ?? id;
+    const projectName = String(project?.name ?? "").trim();
     if (!projectId) {
       toastError("Project id not found");
       return;
     }
-    const { isConfirmed } = await alertConfirm({
+
+    if (!projectName) {
+      toastError("Project name not found");
+      return;
+    }
+
+    const { isConfirmed, value } = await alertTextConfirm({
       title: "Delete project",
-      text: "Project will be deleted. Continue?",
+      text: `Type "${projectName}" to permanently delete this project.`,
       confirmText: "Delete",
       cancelText: "No",
+      inputLabel: "Project name",
+      inputPlaceholder: projectName,
+      expectedValue: projectName,
+      requiredMessage: "Project name is required.",
+      mismatchMessage: "Project name does not match.",
     });
     if (!isConfirmed) return;
 
     try {
-      await dispatch(deleteProjectThunk(projectId)).unwrap();
-      alertSuccess();
+      await dispatch(
+        deleteProjectThunk({
+          id: projectId,
+          payload: {
+            project_name_confirmation: value,
+          },
+        }),
+      ).unwrap();
+      toastSuccess("Project Deleted");
       navigat("/");
     } catch (err) {
       const msg = err?.message || err?.data?.message || "Delete failed";
@@ -722,6 +726,30 @@ const ProjectBoard = () => {
     }
   };
 
+  const handleUpdateProjectMemberRole = async (member, role) => {
+    const memberId = String(member?.removeId ?? member?.id ?? "");
+    if (!id || !memberId || !role) {
+      toastError("Member role data not found");
+      return false;
+    }
+
+    try {
+      await dispatch(
+        updateProjectMemberRoleThunk({
+          projectId: id,
+          memberId,
+          role,
+        }),
+      ).unwrap();
+      toastSuccess("Project role updated");
+      return true;
+    } catch (err) {
+      const msg = err?.message || err?.data?.message || "Role update failed";
+      toastError(msg);
+      return false;
+    }
+  };
+
   const busy =
     !project &&
     !pageError &&
@@ -800,6 +828,8 @@ const ProjectBoard = () => {
         onAddMember={openAddMemberModal}
         onDeleteMember={handleDeleteProjectMember}
         removingByMemberId={projectMemberRemovingByMemberId}
+        onUpdateMemberRole={handleUpdateProjectMemberRole}
+        roleUpdatingByMemberId={projectMemberRoleUpdatingByMemberId}
         collapsed={membersPanelCollapsed}
       />
 
@@ -843,6 +873,7 @@ const ProjectBoard = () => {
       <TaskDetailModal
         isOpen={Boolean(taskId)}
         onClose={closeTaskModal}
+        projectMembers={members}
         task={
           taskId
             ? String(activeTask?.id ?? "") === String(taskId)

@@ -1,11 +1,12 @@
 // >>-- 50 Login css start --<<
 .sign-in-bg {
-  background-color: rgba(var(--primary), 0.3);
+  background-color: #ff44632b;
 
   .sign-in-content-bg {
     background-color: var(--white);
     border-radius: var(--app-border-radius);
     overflow: hidden;
+    border-radius: 2.5em;
 
 
     .signup-content {
@@ -48,16 +49,22 @@
 }
 
 .image-contentbox {
-  background-color: rgba(var(--primary), 0.1);
+  background-color: #FF4463;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  height: 650px;
   .signup-bg-img{
     img{
+      height: 360px;
       margin: auto;
       display: block;
     }
   }
 }
 
-// 
+//
 
 
 .login-form-container {
@@ -72,7 +79,7 @@
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  
+
 
   .app-form {
     padding: 30px 30px;

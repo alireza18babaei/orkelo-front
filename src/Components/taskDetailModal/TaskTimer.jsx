@@ -15,6 +15,9 @@ const parseDateMs = (value) => {
   return Number.isFinite(ms) ? ms : null;
 };
 
+const getTrackerStartMs = (tracker) =>
+  parseDateMs(tracker?.created_at ?? tracker?.createdAt ?? tracker?.start_track);
+
 const formatElapsed = (totalSeconds) => {
   const safeSeconds = clampNonNegativeInt(totalSeconds);
   const hours = Math.floor(safeSeconds / 3600);
@@ -52,7 +55,7 @@ const toTrackerTotalSeconds = (tracker) => {
   const total = Number(tracker?.total_time);
   if (Number.isFinite(total) && total >= 0) return Math.floor(total);
 
-  const startMs = parseDateMs(tracker?.start_track);
+  const startMs = getTrackerStartMs(tracker);
   const stopMs = parseDateMs(tracker?.stop_track);
   if (!startMs || !stopMs || stopMs < startMs) return 0;
   return Math.floor((stopMs - startMs) / 1000);
@@ -67,47 +70,6 @@ const createEmptyTimerState = () => ({
   startedAtMs: null,
   elapsedBeforeSeconds: 0,
 });
-
-const getStorageKey = ({ projectId, taskId, userId }) => {
-  if (!projectId || !taskId || userId == null) return null;
-  return `task-timer:${projectId}:${taskId}:${userId}`;
-};
-
-const readStoredTimerState = (key) => {
-  if (!key || typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    return {
-      running: Boolean(parsed.running),
-      startedAtMs: Number.isFinite(Number(parsed.startedAtMs))
-        ? Number(parsed.startedAtMs)
-        : null,
-      elapsedBeforeSeconds: clampNonNegativeInt(parsed.elapsedBeforeSeconds),
-    };
-  } catch {
-    return null;
-  }
-};
-
-const writeStoredTimerState = (key, state) => {
-  if (!key || typeof window === "undefined") return;
-  const next = {
-    running: Boolean(state?.running),
-    startedAtMs: Number.isFinite(Number(state?.startedAtMs))
-      ? Number(state?.startedAtMs)
-      : null,
-    elapsedBeforeSeconds: clampNonNegativeInt(state?.elapsedBeforeSeconds),
-  };
-
-  try {
-    window.localStorage.setItem(key, JSON.stringify(next));
-  } catch {
-    // localStorage may be blocked/quota-full. Ignore silently.
-  }
-};
 
 const getApiErrorMessage = (err, fallback) =>
   err?.response?.data?.message ||
@@ -128,56 +90,34 @@ const TaskTimer = ({
   const [nowMs, setNowMs] = useState(Date.now());
   const [saving, setSaving] = useState(false);
 
-  const ownTrackers = useMemo(() => {
-    const list = Array.isArray(timeTrackers) ? timeTrackers : [];
-    if (currentUserId == null) return [];
-
-    return list.filter(
-      (item) => String(item?.user_id ?? "") === String(currentUserId),
-    );
-  }, [timeTrackers, currentUserId]);
-
   const latestTaskTracker = useMemo(
     () => pickLatestTracker(timeTrackers),
     [timeTrackers],
   );
-  const hasTaskTrackerHistory = Boolean(latestTaskTracker);
-  const taskTrackerIsRunning = Boolean(
-    latestTaskTracker && latestTaskTracker.stop_track == null,
+  const activeTaskTracker = useMemo(
+    () => pickActiveTracker(timeTrackers),
+    [timeTrackers],
   );
-  const storageKey = useMemo(
-    () => getStorageKey({ projectId, taskId, userId: currentUserId }),
-    [projectId, taskId, currentUserId],
+  const hasTaskTrackerHistory = Boolean(latestTaskTracker);
+  const taskTrackerIsRunning = Boolean(activeTaskTracker);
+  const activeTrackerBelongsToCurrentUser = Boolean(
+    activeTaskTracker &&
+      currentUserId != null &&
+      String(activeTaskTracker?.user_id ?? "") === String(currentUserId),
   );
 
   useEffect(() => {
     if (!isOpen || !taskId) return;
 
-    const active = pickActiveTracker(ownTrackers);
-    const backendElapsed = sumTrackerTotals(ownTrackers);
-    const storedState = readStoredTimerState(storageKey);
+    const backendElapsed = sumTrackerTotals(timeTrackers);
 
     setTimerState({
-      running: Boolean(active),
-      startedAtMs: parseDateMs(active?.start_track),
-      elapsedBeforeSeconds: Math.max(
-        backendElapsed,
-        clampNonNegativeInt(storedState?.elapsedBeforeSeconds),
-      ),
+      running: Boolean(activeTaskTracker),
+      startedAtMs: getTrackerStartMs(activeTaskTracker),
+      elapsedBeforeSeconds: backendElapsed,
     });
     setNowMs(Date.now());
-  }, [isOpen, taskId, ownTrackers, storageKey]);
-
-  useEffect(() => {
-    if (!isOpen || !storageKey) return;
-    writeStoredTimerState(storageKey, timerState);
-  }, [
-    isOpen,
-    storageKey,
-    timerState.running,
-    timerState.startedAtMs,
-    timerState.elapsedBeforeSeconds,
-  ]);
+  }, [isOpen, taskId, timeTrackers, activeTaskTracker]);
 
   useEffect(() => {
     if (!isOpen || !timerState.running) return undefined;
@@ -217,7 +157,7 @@ const TaskTimer = ({
       );
       const data = res?.data?.data ?? res?.data ?? {};
       const tracker = data?.tracker ?? null;
-      const startAtMs = parseDateMs(tracker?.start_track) ?? now;
+      const startAtMs = getTrackerStartMs(tracker) ?? now;
       const nextTotal = clampNonNegativeInt(
         data?.task_total_time ?? timerState.elapsedBeforeSeconds,
       );
@@ -257,7 +197,7 @@ const TaskTimer = ({
 
       const data = res?.data?.data ?? res?.data ?? {};
       const tracker = data?.tracker ?? null;
-      const startedAtMs = parseDateMs(tracker?.start_track) ?? now;
+      const startedAtMs = getTrackerStartMs(tracker) ?? now;
       const nextTotal = clampNonNegativeInt(
         data?.task_total_time ?? timerState.elapsedBeforeSeconds,
       );
@@ -306,6 +246,7 @@ const TaskTimer = ({
   const stopTimer = useCallback(async () => {
     if (!projectId || !taskId) return;
     if (!timerState.running) return;
+    if (!activeTrackerBelongsToCurrentUser) return;
 
     const now = Date.now();
     setSaving(true);
@@ -345,7 +286,7 @@ const TaskTimer = ({
     } finally {
       setSaving(false);
     }
-  }, [projectId, taskId, timerState.running, timerState.startedAtMs, timerState.elapsedBeforeSeconds, onStateChanged, onChanged]);
+  }, [projectId, taskId, timerState.running, timerState.startedAtMs, timerState.elapsedBeforeSeconds, activeTrackerBelongsToCurrentUser, onStateChanged, onChanged]);
 
   const statusLabel = timerState.running
     ? "Running"
@@ -391,9 +332,13 @@ const TaskTimer = ({
             timerState.running ? "btn-danger" : "btn-outline-danger"
           }`}
           onClick={stopTimer}
-          disabled={disabled || !timerState.running}
+          disabled={disabled || !timerState.running || !activeTrackerBelongsToCurrentUser}
           aria-label="Stop timer"
-          title="Stop"
+          title={
+            timerState.running && !activeTrackerBelongsToCurrentUser
+              ? "Timer is running by another user"
+              : "Stop"
+          }
         >
           <i className="ph-fill ph-stop"></i>
         </button>

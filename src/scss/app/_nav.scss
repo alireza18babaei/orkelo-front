@@ -8,11 +8,9 @@
     cursor: pointer;
     display: none;
     color: rgba(var(--primary), 1);
-    background: linear-gradient(
-      135deg,
-      rgba(var(--primary), 0.14),
-      rgba(var(--primary), 0.28)
-    ) !important;
+    background: linear-gradient(135deg,
+            rgba(var(--primary), 0.14),
+            rgba(var(--primary), 0.28)) !important;
     border: 1px solid rgba(var(--primary), 0.32);
     box-shadow: 0 6px 14px rgba(var(--primary), 0.16);
     transition: var(--app-transition);
@@ -22,11 +20,9 @@
     }
 
     &:hover {
-        background: linear-gradient(
-          135deg,
-          rgba(var(--primary), 0.24),
-          rgba(var(--primary), 0.42)
-        ) !important;
+        background: linear-gradient(135deg,
+                rgba(var(--primary), 0.24),
+                rgba(var(--primary), 0.42)) !important;
     }
 }
 
@@ -47,6 +43,8 @@
             .toggle-semi-nav {
                 background-color: rgba(var(--primary), 0.2) !important;
                 transition: var(--app-transition);
+                margin-left: auto;
+                align-self: self-end;
             }
         }
     }
@@ -60,10 +58,13 @@ nav {
     position: fixed;
     background-color: var(--white);
     z-index: 1003;
-    border-top-right-radius: 25px;
-    border-bottom-right-radius: 25px;
+    border-right: 1px solid rgba(var(--secondary), 0.15);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+
     .app-logo {
         padding: 1.5rem 1.5rem 0 1.5rem;
+
         .logo {
             img {
                 width: 140px;
@@ -77,8 +78,9 @@ nav {
         overflow: auto;
 
         .main-nav {
-            > li {
+            >li {
                 padding: 0px 0.5rem;
+
                 &.no-sub {
                     a {
                         &::after {
@@ -91,19 +93,27 @@ nav {
                     position: relative;
                     transition: var(--app-transition);
 
-                    > a {
-                        padding: 0.6rem 1rem;
+                    >a {
+                        padding: 0.45rem 0.8rem;
                         font-weight: 500;
-                        color: rgba(var(--dark), 1);
+                        color: rgba(var(--dark), 0.85);
                         width: 100%;
                         display: inline-flex;
-                        font-size: 16px;
+                        font-size: 13px;
                         align-items: center;
                         text-transform: capitalize;
-                        border-radius: var(--app-border-radius);
+                        border-radius: 6px;
+                        transition: all 0.2s ease;
+
+                        &:hover {
+                            background: rgba(var(--secondary), 0.05);
+                            color: rgba(var(--dark), 1);
+                        }
+
                         &[aria-expanded="true"] {
-                            color: var(--white);
-                            background: rgba(var(--primary), 1);
+                            color: rgba(var(--dark), 1);
+                            background: rgba(var(--secondary), 0.08);
+                            font-weight: 600;
                         }
 
                         &[aria-expanded="false"] {
@@ -137,26 +147,38 @@ nav {
                         list-style-position: inside;
 
                         li {
-                            padding: 0.3rem 1.5rem 0.3rem 3rem;
+                            padding: 0.2rem 1.5rem 0.2rem 2.8rem;
                             font-weight: 400;
-                            line-height: 2;
+                            font-size: 13px;
+                            line-height: 1.8;
                             position: relative;
                             width: 100%;
                             display: block;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
+                            color: rgba(var(--dark), 0.7);
+                            transition: all 0.2s ease;
+                            border-radius: 6px;
+                            margin-bottom: 2px;
+
+                            &:hover {
+                                color: rgba(var(--dark), 1);
+                                background: rgba(var(--secondary), 0.04);
+                            }
 
                             &.active {
-                                color: rgba(var(--primary), 1);
-                                font-weight: 500;
-                                border-radius: 5px;
+                                color: rgba(var(--dark), 1);
+                                font-weight: 600;
+                                background: rgba(var(--secondary), 0.08);
+
                                 a {
                                     &::before {
-                                        background-color: rgba(var(--primary), 1);
-                                        outline: 2px solid rgba(var(--primary), 0.2);
-                                        outline-offset: 2px;
-                                        animation: bounceIn ease-in-out 0.5s;
+                                        background-color: rgba(var(--dark), 1);
+                                        outline: none;
+                                        width: 4px;
+                                        height: 4px;
+                                        animation: none;
                                     }
                                 }
                             }
@@ -193,16 +215,16 @@ nav {
                                         display: none;
                                     }
 
-	                                    .sidebar-project-avatar {
-	                                        width: 26px;
-	                                        height: 26px;
-	                                        flex: 0 0 26px;
-	                                        border-radius: 50%;
-	                                        overflow: hidden;
-	                                        display: inline-flex;
-	                                        align-items: center;
+                                    .sidebar-project-avatar {
+                                        width: 45px;
+                                        height: 45px;
+                                        flex: 0 0 45px;
+                                        border-radius: 50%;
+                                        overflow: hidden;
+                                        display: inline-flex;
+                                        align-items: center;
                                         justify-content: center;
-                                        background: rgba(var(--secondary), 0.16);
+                                        background: transparent;
                                         border: 1px solid rgba(var(--secondary), 0.25);
 
                                         img {
@@ -212,12 +234,12 @@ nav {
                                             display: block;
                                         }
 
-	                                        &.sidebar-project-avatar--fallback {
-	                                            font-size: 11px;
-	                                            font-weight: 700;
-	                                            color: rgba(var(--dark), 0.8);
-	                                            text-transform: uppercase;
-	                                        }
+                                        &.sidebar-project-avatar--fallback {
+                                            font-size: 11px;
+                                            font-weight: 700;
+                                            color: rgba(var(--dark), 0.8);
+                                            text-transform: uppercase;
+                                        }
                                     }
 
                                     .sidebar-project-name {
@@ -249,7 +271,8 @@ nav {
                                     &::before {
                                         content: "+";
                                         position: absolute;
-                                        left: -25px; top: 50%;
+                                        left: -25px;
+                                        top: 50%;
                                         transform: translateY(-50%);
                                         width: 16px;
                                         height: 16px;
@@ -272,8 +295,10 @@ nav {
                                 &:last-child {
                                     padding-bottom: 0;
                                 }
-                                > a {
+
+                                >a {
                                     display: block;
+
                                     &::after {
                                         content: "\ebf8";
                                         transition: var(--app-transition);
@@ -312,6 +337,7 @@ nav {
         .menu-title {
             padding: 0.75rem 1.25rem 0.2rem !important;
             margin-bottom: 0.75rem;
+
             span {
                 text-transform: uppercase;
                 color: rgba(var(--primary), 1);
@@ -324,10 +350,12 @@ nav {
 
         .menu-item {
             padding: 0.5rem 1rem;
+
             .btn {
                 padding: 0;
                 color: rgba(var(--secondary), 1);
                 font-weight: 500;
+
                 .ti {
                     &:before {
                         width: auto;
@@ -527,23 +555,28 @@ nav.vertical-sidebar {
         //:not(.horizontal-sidebar){
         width: $semi-nav;
         transition: var(--app-transition);
+
         .badge {
             display: none;
         }
+
         &:hover {
             width: $sidebar-width;
             transition: var(--app-transition);
 
             .app-logo {
                 padding: 1.5rem 1.5rem 0 1.5rem;
+
                 .logo {
                     width: auto;
                     overflow: unset;
                     transition: var(--app-transition);
                 }
             }
+
             .app-nav {
                 width: 100%;
+
                 .menu-title {
                     span {
                         display: inline;
@@ -557,32 +590,63 @@ nav.vertical-sidebar {
                 }
 
                 .main-nav {
-                    > li {
+                    >li {
                         &:not(.menu-title) {
                             ul {
                                 height: auto;
                                 opacity: 1;
                                 transition: var(--app-transition);
                             }
-                            > a::after {
+
+                            >a::after {
                                 content: "\ec86";
                                 transition: var(--app-transition);
                             }
-                            a[aria-expanded="true"]::after, >a [aria-expanded="true"]::after {
+
+                            a[aria-expanded="true"]::after,
+                            >a [aria-expanded="true"]::after {
                                 content: "\ebf8";
                                 transition: var(--app-transition);
                             }
                         }
+
                         a {
                             font-size: inherit;
                             text-align: left;
+                            justify-content: flex-start !important;
+                            padding-left: 0.8rem;
+                            padding-right: 0.8rem;
                             transition: var(--app-transition);
                             transition-duration: 0.15s;
+
                             i {
                                 font-size: 1.2rem;
                                 margin-right: 0.25rem;
                                 margin-top: -4px;
                                 margin-left: 0;
+                            }
+                        }
+
+                        // Restore project items to default on hover
+                        &.sidebar-dropdown--compact-projects {
+                            >ul.sidebar-submenu--compact-projects {
+                                li.project-submenu-item {
+                                    padding: 0.2rem 1.5rem 0.2rem 2.8rem !important;
+
+                                    a {
+                                        justify-content: flex-start;
+                                        padding: 0;
+                                        gap: 0.5rem;
+
+                                        .sidebar-project-name {
+                                            display: block;
+                                        }
+                                    }
+                                }
+
+                                li.add-project-item {
+                                    display: block;
+                                }
                             }
                         }
                     }
@@ -614,16 +678,56 @@ nav.vertical-sidebar {
             }
         }
 
-        & ~ .app-content {
+        // Compact layout: only when collapsed AND not being hovered
+        &:not(:hover) {
+            .app-nav .main-nav {
+                >li.sidebar-dropdown--compact-projects {
+                    >ul.sidebar-submenu--compact-projects {
+                        padding: 0;
+                        margin-top: 10px;
+
+                        li.project-submenu-item {
+                            padding: 0.2rem 0 !important;
+
+                            a {
+                                justify-content: center;
+                                padding: 0.15rem 0;
+                                gap: 0;
+
+                                .sidebar-project-name {
+                                    display: none;
+                                }
+
+                                &::before {
+                                    display: none !important;
+                                }
+
+                                .sidebar-project-avatar--fallback {
+                                    font-size: 10px;
+                                }
+                            }
+                        }
+
+                        li.add-project-item {
+                            display: none;
+                        }
+                    }
+                }
+            }
+        }
+
+        &~.app-content {
             padding-left: $semi-nav;
 
             transition: var(--app-transition);
+
             header {
                 &.header-main {
-                    padding-left: calc($semi-nav + 20px);
+                    padding-left: $semi-nav;
                     transition: var(--app-transition);
                 }
             }
+
             footer {
                 padding-left: $semi-nav;
             }
@@ -631,6 +735,7 @@ nav.vertical-sidebar {
 
         .app-logo {
             padding: 1.5rem 1.5rem 0 1.5rem;
+
             .logo {
                 width: 25px;
                 overflow: hidden;
@@ -640,7 +745,7 @@ nav.vertical-sidebar {
 
         .app-nav {
             .menu-title {
-                > span {
+                >span {
                     display: block;
                     text-overflow: ellipsis;
                     overflow: hidden;
@@ -653,7 +758,8 @@ nav.vertical-sidebar {
 
             .main-nav {
                 margin-bottom: 2rem;
-                > li {
+
+                >li {
                     &:not(.menu-title) {
                         ul {
                             height: 0;
@@ -661,14 +767,28 @@ nav.vertical-sidebar {
                             transition: var(--app-transition);
                         }
                     }
+
+                    // Always visible: projects list in compact (collapsed) mode
+                    &.sidebar-dropdown--compact-projects {
+                        >ul.sidebar-submenu--compact-projects {
+                            height: auto !important;
+                            opacity: 1 !important;
+                        }
+                    }
                 }
+
                 li {
-                    &:not(.menu-title) > a::after {
+                    &:not(.menu-title)>a::after {
                         content: none;
                     }
+
                     a {
                         font-size: 0;
                         text-align: center;
+                        padding-right: 0;
+                        padding-left: 0;
+                        justify-content: center !important;
+
                         i {
                             font-size: 1.2rem;
                             margin: 0 auto;
@@ -698,6 +818,7 @@ nav.vertical-sidebar {
                 display: none;
             }
         }
+
         //}
     }
 
@@ -721,43 +842,52 @@ nav.vertical-sidebar {
                 top: 7px;
                 margin: 0 auto;
                 z-index: -1;
-                > span {
+
+                >span {
                     padding: 2px 6px;
                     font-size: 20px;
                     border-radius: 100%;
                     background-color: rgba(var(--primary), 0.1);
                     color: rgba(var(--primary), 1);
                     cursor: pointer;
+
                     &.menu-next {
                         float: right;
                     }
                 }
             }
+
             .simplebar-horizontal {
                 visibility: visible;
             }
+
             .simplebar-vertical {
                 visibility: hidden;
             }
+
             .app-nav {
                 min-height: 50px;
                 width: 1260px;
                 height: auto;
                 margin: 0 auto;
+
                 .main-nav {
                     margin-top: 0 !important;
                     display: flex;
                     flex-wrap: nowrap;
                     width: max-content;
                     transition: var(--app-transition);
-                    > li:not(.menu-title) {
+
+                    >li:not(.menu-title) {
                         width: auto;
                         display: inline-block;
+
                         a {
                             width: auto;
                             display: flex;
                             padding-right: 30px;
                             border-radius: 0;
+
                             &::after {
                                 right: 0.5rem;
                             }
@@ -768,28 +898,33 @@ nav.vertical-sidebar {
                             background-color: var(--white);
                         }
                     }
-                    > li {
+
+                    >li {
                         padding: 0px;
                     }
                 }
+
                 .menu-title {
                     display: none;
                 }
 
             }
 
-            ~ footer {
+            ~footer {
                 padding-left: 1rem;
                 padding-right: 1rem;
-                .container-fluid{
+
+                .container-fluid {
                     max-width: 1366px;
                 }
             }
+
             .app-logo {
                 position: relative;
                 width: 1366px;
                 margin: 0 auto;
                 padding: 0;
+
                 .logo {
                     position: absolute;
                     top: -48px;
@@ -798,34 +933,41 @@ nav.vertical-sidebar {
                 }
             }
 
-            & ~ .app-content {
+            &~.app-content {
                 padding-top: 130px;
                 padding-left: 0;
                 width: 1366px;
                 margin: 0 auto;
                 box-shadow: none;
                 padding-right: 0;
+
                 footer {
                     padding: 12px 16px;
                     width: 100%;
                     margin: 0 auto;
+
                     .container-fluid {
                         width: 1346px;
                     }
                 }
+
                 .container-fluid {
                     padding: 0;
                 }
+
                 .header-main {
                     padding-left: 0;
                     right: 0;
                     top: 0;
+
                     .header-toggle {
                         width: 0;
                         opacity: 0;
                     }
+
                     .container-fluid {
                         padding: 0;
+
                         &> {
                             .row {
                                 width: 1366px;
@@ -839,6 +981,7 @@ nav.vertical-sidebar {
                         box-shadow: none;
                         border-bottom: 1px solid rgba(var(--secondary), 0.1);
                         border-radius: 0;
+
                         .card-body {
                             width: 1366px;
                             margin: 0 auto;

@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { initialCartItems, searchData } from "../../Data/HeaderMenuData.js";
-import { Link } from "react-router-dom";
-import { Button, Card, CardBody } from "reactstrap";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "reactstrap";
 import HeaderMode from "../../Layout/Header/HeaderMode.jsx";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutThunk } from "../../store/auth/authSlice.js";
@@ -9,6 +9,8 @@ import {
   addCompanyMemberThunk,
   deleteCompanyMemberThunk,
   getCompanyMembersThunk,
+  getCompanyRolesThunk,
+  updateCompanyMemberRoleThunk,
 } from "../../store/company/companyMembersSlice.js";
 import {
   removeMyCompanyImageThunk,
@@ -35,6 +37,7 @@ import {
 } from "../../store/notifications/notificationsSlice.js";
 
 const HeaderMenu = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [cartItems, setCartItems] = useState(initialCartItems);
   const user = useSelector((s) => s.auth.user);
@@ -56,6 +59,10 @@ const HeaderMenu = () => {
     error: companyMembersError,
     addLoading: companyMemberAddLoading,
     removingByUserId: companyMembersRemovingByUserId,
+    roles: companyRoles,
+    rolesStatus: companyRolesStatus,
+    rolesError: companyRolesError,
+    roleUpdatingByUserId: companyMemberRoleUpdatingByUserId,
   } = useSelector((s) => s.companyMembers || {});
   const {
     items: notificationsItems = [],
@@ -74,7 +81,6 @@ const HeaderMenu = () => {
     useState(false);
   const [companyEditModalOpen, setCompanyEditModalOpen] = useState(false);
 
-  const userCompanyId = user?.company_id ?? null;
   const activeCompanyId =
     activeCompanyIdFromContext ?? user?.active_company_id ?? null;
   const activeCompany = useMemo(() => {
@@ -89,20 +95,35 @@ const HeaderMenu = () => {
     );
   }, [companyContextActiveCompany, companyItems, activeCompanyId]);
 
-  const canManageCurrentCompany =
-    userCompanyId != null &&
-    activeCompanyId != null &&
-    String(userCompanyId) === String(activeCompanyId);
+  const companyRole = String(
+    activeCompany?.membership?.role ?? user?.company_role ?? user?.user_type ?? "",
+  ).trim().toLowerCase();
+  const canManageCurrentCompany = activeCompanyId != null;
+  const isCompanyOwner = companyRole === "company_owner";
+  const canManageCompanyMembers = canManageCurrentCompany && isCompanyOwner;
+  const canEditCompany = canManageCurrentCompany && isCompanyOwner;
+  const canSeeCompanyMenu = canEditCompany || canManageCompanyMembers;
   const companyUpdating = companyUpdateStatus === "loading";
   const companyRemovingImage = companyRemoveImageStatus === "loading";
 
   useEffect(() => {
-    if (canManageCurrentCompany) return;
-    setCompanyActionOpen(false);
-    setCompanyMembersModalOpen(false);
-    setCompanyAddMemberModalOpen(false);
-    setCompanyEditModalOpen(false);
-  }, [canManageCurrentCompany]);
+    if (!canSeeCompanyMenu) {
+      setCompanyActionOpen(false);
+      setCompanyMembersModalOpen(false);
+      setCompanyAddMemberModalOpen(false);
+      setCompanyEditModalOpen(false);
+      return;
+    }
+
+    if (!canManageCompanyMembers) {
+      setCompanyMembersModalOpen(false);
+      setCompanyAddMemberModalOpen(false);
+    }
+
+    if (!canEditCompany) {
+      setCompanyEditModalOpen(false);
+    }
+  }, [canSeeCompanyMenu, canManageCompanyMembers, canEditCompany]);
 
   useEffect(() => {
     if (notificationsStatus !== "idle") return;
@@ -135,23 +156,30 @@ const HeaderMenu = () => {
   };
 
   const openCompanyMembersModal = () => {
+    if (!canManageCompanyMembers) return;
     setCompanyMembersModalOpen(true);
     dispatch(getCompanyMembersThunk());
+    dispatch(getCompanyRolesThunk());
   };
 
   const handleReloadCompanyMembers = () => {
+    if (!canManageCompanyMembers) return;
     dispatch(getCompanyMembersThunk());
+    dispatch(getCompanyRolesThunk());
   };
 
   const openCompanyAddMemberModal = () => {
+    if (!canManageCompanyMembers) return;
     setCompanyAddMemberModalOpen(true);
   };
 
   const openCompanyEditModal = () => {
+    if (!canEditCompany) return;
     setCompanyEditModalOpen(true);
   };
 
   const handleSubmitCompanyEdit = async ({ name, image }) => {
+    if (!canEditCompany) return;
     const currentName = String(activeCompany?.name ?? "").trim();
     const nextName = String(name ?? "").trim();
     const hasNameChanged = nextName !== currentName;
@@ -177,6 +205,7 @@ const HeaderMenu = () => {
   };
 
   const handleRemoveCompanyImage = async () => {
+    if (!canEditCompany) return;
     try {
       await dispatch(removeMyCompanyImageThunk()).unwrap();
       toastSuccess("Company image removed");
@@ -186,6 +215,7 @@ const HeaderMenu = () => {
   };
 
   const handleSubmitAddCompanyMember = async (email) => {
+    if (!canManageCompanyMembers) return;
     try {
       await dispatch(addCompanyMemberThunk({ email })).unwrap();
       toastSuccess("Member added");
@@ -197,6 +227,7 @@ const HeaderMenu = () => {
   };
 
   const handleDeleteCompanyMember = async (member) => {
+    if (!canManageCompanyMembers) return;
     const userId = String(member?.userId ?? "");
     if (!userId) {
       toastError("User id not found");
@@ -216,6 +247,26 @@ const HeaderMenu = () => {
       toastSuccess("Member removed");
     } catch (err) {
       toastError(err?.message || "Failed to remove member");
+    }
+  };
+
+  const handleChangeCompanyMemberRole = async (member, role) => {
+    if (!canManageCompanyMembers) return;
+    const userId = String(member?.userId ?? "");
+    const nextRole = String(role ?? "").trim();
+
+    if (!userId || !nextRole || nextRole === member?.role) return;
+
+    try {
+      await dispatch(
+        updateCompanyMemberRoleThunk({
+          userId,
+          role: nextRole,
+        }),
+      ).unwrap();
+      toastSuccess("Member role updated");
+    } catch (err) {
+      toastError(err?.message || "Failed to update member role");
     }
   };
 
@@ -245,26 +296,34 @@ const HeaderMenu = () => {
   };
 
   const companyMenuActions = [
-    {
-      key: "edit-company",
-      label: "Edit Company",
-      icon: "ti-edit",
-      onClick: openCompanyEditModal,
-      disabled: !activeCompany,
-    },
-    { type: "divider" },
-    {
-      key: "company-members",
-      label: "Company Members",
-      icon: "ti-users",
-      onClick: openCompanyMembersModal,
-    },
-    {
-      key: "add-member",
-      label: "Add Member",
-      icon: "ti-user-plus",
-      onClick: openCompanyAddMemberModal,
-    },
+    ...(canEditCompany
+      ? [
+          {
+            key: "edit-company",
+            label: "Edit Company",
+            icon: "ti-edit",
+            onClick: openCompanyEditModal,
+            disabled: !activeCompany,
+          },
+        ]
+      : []),
+    ...(canManageCompanyMembers
+      ? [
+          ...(canEditCompany ? [{ type: "divider" }] : []),
+          {
+            key: "company-members",
+            label: "Company Members",
+            icon: "ti-users",
+            onClick: openCompanyMembersModal,
+          },
+          {
+            key: "add-member",
+            label: "Add Member",
+            icon: "ti-user-plus",
+            onClick: openCompanyAddMemberModal,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -461,7 +520,7 @@ const HeaderMenu = () => {
           </button>
         </li>
 
-        {canManageCurrentCompany ? (
+        {canSeeCompanyMenu && companyMenuActions.length > 0 ? (
           <li className="header-company">
             <div ref={companyMenuRef} className="position-relative">
               <button
@@ -539,6 +598,12 @@ const HeaderMenu = () => {
                   </Link>
                 </li>
                 <li>
+                  <Link className="f-w-500" to={"/profile/projects"}>
+                    <i className="ph-bold ph-files pe-1 f-s-20"></i>
+                    My file manager
+                  </Link>
+                </li>
+                <li>
                   <Link className="f-w-500" href="/apps/profile-page/setting">
                     <i className="ph-duotone  ph-gear pe-1 f-s-20"></i> Settings
                   </Link>
@@ -582,7 +647,7 @@ const HeaderMenu = () => {
         </li>
       </ul>
 
-      {canManageCurrentCompany ? (
+      {canEditCompany ? (
         <EditCompanyModal
           isOpen={companyEditModalOpen}
           onClose={() => setCompanyEditModalOpen(false)}
@@ -594,7 +659,7 @@ const HeaderMenu = () => {
         />
       ) : null}
 
-      {canManageCurrentCompany ? (
+      {canManageCompanyMembers ? (
         <CompanyMembersModal
           isOpen={companyMembersModalOpen}
           onClose={() => setCompanyMembersModalOpen(false)}
@@ -604,10 +669,15 @@ const HeaderMenu = () => {
           onReload={handleReloadCompanyMembers}
           onDeleteMember={handleDeleteCompanyMember}
           removingByUserId={companyMembersRemovingByUserId}
+          roles={companyRoles}
+          rolesStatus={companyRolesStatus}
+          rolesError={companyRolesError}
+          roleUpdatingByUserId={companyMemberRoleUpdatingByUserId}
+          onChangeMemberRole={handleChangeCompanyMemberRole}
         />
       ) : null}
 
-      {canManageCurrentCompany ? (
+      {canManageCompanyMembers ? (
         <AddCompanyMemberModal
           isOpen={companyAddMemberModalOpen}
           onClose={() => setCompanyAddMemberModalOpen(false)}

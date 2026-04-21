@@ -2,6 +2,18 @@ import React, { useMemo } from "react";
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import { resolveUserAvatarWithFallback } from "../../utils/mediaUrl.js";
 
+const roleLabels = {
+  company_owner: "Company Owner",
+  company_supervisor: "Company Supervisor",
+  member: "Member",
+};
+
+const getRoleLabel = (role) => {
+  const value = String(role ?? "").trim();
+  if (!value) return "Member";
+  return roleLabels[value] ?? value.replace(/_/g, " ");
+};
+
 const resolveInitials = (name) => {
   const n = String(name || "").trim();
   if (!n) return "NA";
@@ -17,6 +29,10 @@ const normalizeMembers = (members) =>
     const email = src?.email ?? "-";
     const avatar = src?.avatar ?? "";
     const userId = src?.id ?? null;
+    const role = src?.role ?? src?.membership?.role ?? "member";
+    const status = src?.status ?? src?.membership?.status ?? null;
+    const isCompanyOwner =
+      Boolean(src?.is_company_owner) || role === "company_owner";
 
     return {
       id: String(id),
@@ -25,6 +41,9 @@ const normalizeMembers = (members) =>
       email,
       avatar: resolveUserAvatarWithFallback(avatar, userId ?? email ?? name),
       initials: resolveInitials(name),
+      role,
+      status,
+      isCompanyOwner,
     };
   });
 
@@ -37,8 +56,32 @@ const CompanyMembersModal = ({
   onReload,
   onDeleteMember,
   removingByUserId = {},
+  roles = [],
+  rolesStatus = "idle",
+  rolesError = null,
+  roleUpdatingByUserId = {},
+  onChangeMemberRole,
 }) => {
   const list = useMemo(() => normalizeMembers(members), [members]);
+  const roleOptions = useMemo(() => {
+    const assignableRoles = Array.isArray(roles) && roles.length
+      ? roles
+      : ["member", "company_supervisor"];
+
+    return assignableRoles
+      .map((role) => String(role ?? "").trim())
+      .filter(Boolean)
+      .map((role) => ({
+        value: role,
+        label: getRoleLabel(role),
+      }));
+  }, [roles]);
+
+  const handleRoleChange = (member, nextRole) => {
+    const role = String(nextRole ?? "").trim();
+    if (!role || role === member.role || member.isCompanyOwner) return;
+    onChangeMemberRole?.(member, role);
+  };
 
   return (
     <Modal isOpen={isOpen} toggle={onClose} centered>
@@ -84,24 +127,62 @@ const CompanyMembersModal = ({
                     <p>{member.email}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="btn company-member-row__delete"
-                  onClick={() => onDeleteMember?.(member)}
-                  disabled={
-                    !member.userId || !!removingByUserId[String(member.userId)]
-                  }
-                  aria-label={`Remove ${member.name}`}
-                >
-                  {removingByUserId[String(member.userId)] ? (
-                    <iconify-icon icon="line-md:loading-loop" />
+                <div className="company-member-row__actions">
+                  {member.isCompanyOwner ? (
+                    <span className="company-member-row__role-badge">
+                      {getRoleLabel(member.role)}
+                    </span>
                   ) : (
-                    <i className="ph ph-trash"></i>
+                    <select
+                      className="form-select form-select-sm company-member-row__role-select"
+                      value={member.role || "member"}
+                      onChange={(e) => handleRoleChange(member, e.target.value)}
+                      disabled={
+                        rolesStatus === "loading" ||
+                        !!roleUpdatingByUserId[String(member.userId)]
+                      }
+                      aria-label={`Change ${member.name} role`}
+                    >
+                      {roleOptions.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
                   )}
-                </button>
+                  <button
+                    type="button"
+                    className="btn company-member-row__delete"
+                    onClick={() => onDeleteMember?.(member)}
+                    disabled={
+                      member.isCompanyOwner ||
+                      !member.userId ||
+                      !!removingByUserId[String(member.userId)] ||
+                      !!roleUpdatingByUserId[String(member.userId)]
+                    }
+                    aria-label={`Remove ${member.name}`}
+                    title={
+                      member.isCompanyOwner
+                        ? "Company owner cannot be removed"
+                        : `Remove ${member.name}`
+                    }
+                  >
+                    {removingByUserId[String(member.userId)] ? (
+                      <iconify-icon icon="line-md:loading-loop" />
+                    ) : (
+                      <i className="ph ph-trash"></i>
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
+        ) : null}
+
+        {status !== "loading" && !error && rolesError ? (
+          <p className="text-danger f-s-12 mt-2 mb-0">
+            {rolesError?.message || "Failed to load company roles"}
+          </p>
         ) : null}
       </ModalBody>
       <ModalFooter>

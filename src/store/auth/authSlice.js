@@ -8,6 +8,10 @@ import {
 } from "../../utils/tokenStorage";
 import { resolveRandomAiAvatar } from "../../utils/mediaUrl";
 
+const USER_PROFILE_FIELDS = [
+  "name",
+];
+
 const PROFILE_RECORD_FIELDS = [
   "about_me",
   "work_passion",
@@ -19,12 +23,19 @@ const PROFILE_RECORD_FIELDS = [
   "github",
 ];
 
-const normalizeUserFromPayload = (payload) => {
-  const root = payload?.data ?? payload ?? {};
-  const data = root?.data ?? root;
-  const candidate = data?.user ?? root?.user ?? null;
+const isRecord = (value) =>
+  value != null && typeof value === "object" && !Array.isArray(value);
 
-  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
+const normalizeUserFromPayload = (payload) => {
+  const root = isRecord(payload?.data) ? payload.data : payload ?? {};
+  const data = isRecord(root?.data) ? root.data : root;
+  const candidate = isRecord(data?.user)
+    ? data.user
+    : isRecord(root?.user)
+      ? root.user
+      : null;
+
+  if (!candidate) return null;
 
   if (
     candidate?.id != null ||
@@ -32,36 +43,65 @@ const normalizeUserFromPayload = (payload) => {
     candidate?.email != null ||
     candidate?.avatar != null
   ) {
-    return candidate;
+    const normalized = { ...candidate };
+    if (
+      normalized.company_role == null &&
+      typeof normalized.user_type === "string"
+    ) {
+      normalized.company_role = normalized.user_type;
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(normalized, "project_roles") &&
+      !Array.isArray(normalized.project_roles)
+    ) {
+      normalized.project_roles = [];
+    }
+
+    return normalized;
   }
 
   return null;
 };
 
 const normalizeProfileFromPayload = (payload) => {
-  const root = payload?.data ?? payload ?? null;
-  if (!root || typeof root !== "object" || Array.isArray(root)) return null;
+  const root = isRecord(payload?.data) ? payload.data : payload ?? null;
+  if (!isRecord(root)) return null;
 
-  const profile =
-    (root?.profile && typeof root.profile === "object" ? root.profile : null) ??
-    (root?.data?.profile && typeof root.data.profile === "object"
-      ? root.data.profile
-      : null);
+  const data = isRecord(root?.data) ? root.data : root;
+  const user = isRecord(data?.user)
+    ? data.user
+    : isRecord(root?.user)
+      ? root.user
+      : null;
 
-  return profile && !Array.isArray(profile) ? profile : null;
+  const profile = isRecord(data?.profile)
+    ? data.profile
+    : isRecord(root?.profile)
+      ? root.profile
+      : isRecord(user?.profile)
+        ? user.profile
+        : null;
+
+  return profile;
 };
 
-const pickProfileRecordFields = (payload) => {
+const pickFields = (payload, fields) => {
   const src = payload && typeof payload === "object" ? payload : {};
   const out = {};
 
-  PROFILE_RECORD_FIELDS.forEach((key) => {
+  fields.forEach((key) => {
     if (src[key] === undefined) return;
     out[key] = typeof src[key] === "string" ? src[key].trim() : src[key];
   });
 
   return out;
 };
+
+const pickUserProfileFields = (payload) =>
+  pickFields(payload, USER_PROFILE_FIELDS);
+
+const pickProfileRecordFields = (payload) =>
+  pickFields(payload, PROFILE_RECORD_FIELDS);
 
 const PROFILE_AVATAR_KEYS = new Set(["avatar_file", "avatarFile", "avatarPreviewUrl"]);
 
@@ -157,7 +197,7 @@ export const assignRandomAvatarThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const body = await createRandomAvatarFormData();
-      const res = await api.post("/auth/profile/avatar", body);
+      const res = await api.post("/profile/avatar", body);
       return res.data;
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
@@ -182,7 +222,7 @@ export const getMyProfileThunk = createAsyncThunk(
   "auth/getMyProfile",
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get("/auth/profile");
+      const res = await api.get("/profile");
       return res.data;
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
@@ -193,8 +233,13 @@ export const getMyProfileThunk = createAsyncThunk(
 export const updateMyProfileThunk = createAsyncThunk(
   "auth/updateMyProfile",
   async (payload, { rejectWithValue }) => {
-    const profileFields = pickProfileRecordFields(payload);
-    const profilePayload = pickProfileRecordFields(stripAvatarPayload(payload));
+    const cleanPayload = stripAvatarPayload(payload);
+    const userFields = pickUserProfileFields(cleanPayload);
+    const profileFields = pickProfileRecordFields(cleanPayload);
+    const profilePayload = {
+      ...userFields,
+      ...profileFields,
+    };
     const avatarFile = getAvatarFileFromPayload(payload);
     const shouldUpdateProfile = Object.keys(profilePayload).length > 0;
     const shouldUpdateAvatar = typeof File !== "undefined" && avatarFile instanceof File;
@@ -204,12 +249,12 @@ export const updateMyProfileThunk = createAsyncThunk(
 
     try {
       if (shouldUpdateProfile) {
-        profileRes = await api.patch("/auth/profile", profilePayload);
+        profileRes = await api.patch("/profile", profilePayload);
       }
 
       if (shouldUpdateAvatar) {
         avatarRes = await api.post(
-          "/auth/profile/avatar",
+          "/profile/avatar",
           buildAvatarUpdateBody(avatarFile),
         );
       }
@@ -217,11 +262,16 @@ export const updateMyProfileThunk = createAsyncThunk(
       const userFromResponse =
         normalizeUserFromPayload(avatarRes?.data) ??
         normalizeUserFromPayload(profileRes?.data);
-      const profileFromResponse = normalizeProfileFromPayload(profileRes?.data);
+      const profileFromResponse =
+        normalizeProfileFromPayload(profileRes?.data) ??
+        normalizeProfileFromPayload(avatarRes?.data) ??
+        (isRecord(userFromResponse?.profile) ? userFromResponse.profile : null);
 
       return {
         user: userFromResponse,
-        profile: profileFromResponse ?? (shouldUpdateProfile ? profileFields : null),
+        profile:
+          profileFromResponse ??
+          (Object.keys(profileFields).length ? profileFields : null),
         localOnly: false,
       };
     } catch (err) {
@@ -267,6 +317,7 @@ const authSlice = createSlice({
       state.profile = null;
       state.accessToken = null;
       state.error = null;
+      state.meStatus = "idle";
       state.profileStatus = "idle";
       state.profileError = null;
       state.profileUpdateStatus = "idle";
@@ -287,6 +338,7 @@ const authSlice = createSlice({
         a.payload?.accessToken;
 
       const user = normalizeUserFromPayload(a.payload);
+      const profile = normalizeProfileFromPayload(a.payload) ?? user?.profile ?? null;
       const rememberMe = !!a.meta?.arg?.rememberMe;
       if (token) {
         s.accessToken = token;
@@ -294,6 +346,11 @@ const authSlice = createSlice({
       }
 
       s.user = user;
+      s.profile = profile;
+      if (profile) {
+        s.profileStatus = "success";
+        s.profileError = null;
+      }
     });
     // NOTE: Register
     b.addCase(signUpThunk.fulfilled, (s, a) => {
@@ -304,6 +361,7 @@ const authSlice = createSlice({
         a.payload?.data?.token;
 
       const user = normalizeUserFromPayload(a.payload);
+      const profile = normalizeProfileFromPayload(a.payload) ?? user?.profile ?? null;
 
       const rememberMe = !!a.meta?.arg?.rememberMe;
 
@@ -313,10 +371,21 @@ const authSlice = createSlice({
       }
 
       s.user = user;
+      s.profile = profile;
+      if (profile) {
+        s.profileStatus = "success";
+        s.profileError = null;
+      }
     });
     b.addCase(assignRandomAvatarThunk.fulfilled, (s, a) => {
       const user = normalizeUserFromPayload(a.payload);
       if (user) s.user = { ...(s.user || {}), ...user };
+      const profile = normalizeProfileFromPayload(a.payload) ?? user?.profile ?? null;
+      if (profile) {
+        s.profile = { ...(s.profile || {}), ...profile };
+        s.profileStatus = "success";
+        s.profileError = null;
+      }
     });
 
     // NOTE: Me
@@ -325,12 +394,25 @@ const authSlice = createSlice({
     });
     b.addCase(meThunk.fulfilled, (s, a) => {
       const meUser = normalizeUserFromPayload(a.payload);
+      const meProfile = normalizeProfileFromPayload(a.payload) ?? meUser?.profile ?? null;
       s.user = meUser ?? null;
+      if (meProfile) {
+        s.profile = meProfile;
+        s.profileStatus = "success";
+        s.profileError = null;
+      }
       s.meStatus = "success";
     });
     b.addCase(meThunk.rejected, (s, a) => {
       s.user = null;
+      s.profile = null;
       s.meStatus = "failed";
+      s.profileStatus = "idle";
+      s.profileError = null;
+      if (Number(a.payload?.status ?? 0) === 401) {
+        s.accessToken = null;
+        clearTokenEveryWhere();
+      }
     });
 
     b.addCase(getMyProfileThunk.pending, (s) => {
@@ -340,10 +422,13 @@ const authSlice = createSlice({
     b.addCase(getMyProfileThunk.fulfilled, (s, a) => {
       const profile = normalizeProfileFromPayload(a.payload);
       const userFromProfile = normalizeUserFromPayload(a.payload);
+      const nextProfile = profile ?? userFromProfile?.profile ?? null;
       if (userFromProfile) {
-        s.user = userFromProfile;
+        s.user = { ...(s.user || {}), ...userFromProfile };
       }
-      s.profile = profile;
+      s.profile = nextProfile
+        ? { ...(s.profile || {}), ...nextProfile }
+        : null;
       s.profileStatus = "success";
       s.profileError = null;
     });
@@ -358,8 +443,12 @@ const authSlice = createSlice({
       s.profileUpdateLocalOnly = false;
     });
     b.addCase(updateMyProfileThunk.fulfilled, (s, a) => {
-      if (a.payload?.user) s.user = a.payload.user;
-      if (a.payload?.profile) s.profile = a.payload.profile;
+      if (a.payload?.user) s.user = { ...(s.user || {}), ...a.payload.user };
+      if (a.payload?.profile) {
+        s.profile = { ...(s.profile || {}), ...a.payload.profile };
+      } else if (a.payload?.user?.profile) {
+        s.profile = { ...(s.profile || {}), ...a.payload.user.profile };
+      }
       s.profileStatus = "success";
       s.profileError = null;
       s.profileUpdateStatus = "success";
@@ -382,6 +471,7 @@ const authSlice = createSlice({
       s.profile = null;
       s.accessToken = null;
       s.error = null;
+      s.meStatus = "idle";
       s.profileStatus = "idle";
       s.profileError = null;
       s.profileUpdateStatus = "idle";
@@ -395,6 +485,7 @@ const authSlice = createSlice({
       s.profile = null;
       s.accessToken = null;
       s.error = a.payload || { message: "Unknown Error" };
+      s.meStatus = "idle";
       s.profileStatus = "idle";
       s.profileError = null;
       s.profileUpdateStatus = "idle";

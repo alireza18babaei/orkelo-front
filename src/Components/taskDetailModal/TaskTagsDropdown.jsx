@@ -37,6 +37,9 @@ export default function TaskTagsDropdown({
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [localSelectedTags, setLocalSelectedTags] = useState(
+    Array.isArray(selectedTags) ? selectedTags : [],
+  );
 
   const tagsState = useSelector((s) => s.tags);
 
@@ -45,12 +48,22 @@ export default function TaskTagsDropdown({
       ? tagsState?.items || []
       : [];
 
+  useEffect(() => {
+    setLocalSelectedTags(Array.isArray(selectedTags) ? selectedTags : []);
+  }, [selectedTags]);
+
+  const selectedTagItems = useMemo(
+    () => (Array.isArray(localSelectedTags) ? localSelectedTags : []),
+    [localSelectedTags],
+  );
+
   const tagIds = useMemo(
-    () => new Set((selectedTags || []).map((t) => getTagKey(t)).filter(Boolean)),
-    [selectedTags],
+    () => new Set(selectedTagItems.map((t) => getTagKey(t)).filter(Boolean)),
+    [selectedTagItems],
   );
 
   const loading = open && tagsState?.status === "loading";
+  const togglingByTagId = tagsState?.togglingByTagId || {};
 
   const toggle = () => {
     if (disabled) return;
@@ -63,6 +76,17 @@ export default function TaskTagsDropdown({
   }, [open, dispatch, projectId, taskId]);
 
   const items = useMemo(() => projectTags || [], [projectTags]);
+  const tagLookup = useMemo(() => {
+    const map = new Map();
+
+    [...items, ...selectedTagItems, ...(selectedTags || [])].forEach((tag) => {
+      const key = getTagKey(tag);
+      if (!key || map.has(key)) return;
+      map.set(key, tag);
+    });
+
+    return map;
+  }, [items, selectedTagItems, selectedTags]);
 
   const handleSelectTag = async (tag) => {
     if (!projectId) return;
@@ -83,14 +107,9 @@ export default function TaskTagsDropdown({
     const key = String(tagId);
     const wasAssigned = tagIds.has(key);
 
-    if (wasAssigned) {
-      toastError("Removing a tag from task is not available in backend routes.");
-      return;
-    }
-
     try {
       const res = await dispatch(
-        toggleTaskTagThunk({ projectId, taskId, tagId }),
+        toggleTaskTagThunk({ projectId, taskId, tagId, detach: wasAssigned }),
       ).unwrap();
 
       const next =
@@ -98,15 +117,17 @@ export default function TaskTagsDropdown({
           ? res.tagIds.map((id) => {
               const normalizedId = String(id);
               return (
-                (items || []).find((candidate) => getTagKey(candidate) === normalizedId) ||
-                (selectedTags || []).find(
-                  (candidate) => getTagKey(candidate) === normalizedId,
-                ) ||
+                tagLookup.get(normalizedId) ||
                 { id }
               );
             })
-          : [...(selectedTags || []), tag];
+          : wasAssigned
+            ? selectedTagItems.filter(
+                (candidate) => getTagKey(candidate) !== key,
+              )
+            : [...selectedTagItems, tag];
 
+      setLocalSelectedTags(next);
       onChanged?.(next);
       setOpen(false);
     } catch (err) {
@@ -121,86 +142,130 @@ export default function TaskTagsDropdown({
 
   return (
     <>
-      <Dropdown isOpen={open} toggle={toggle}>
-        <DropdownToggle
-          tag="button"
-          type="button"
-          disabled={disabled}
-          className="btn d-flex align-items-center justify-content-between px-0 border-bottom w-100"
-        >
-          <span className="d-flex align-items-center gap-2">
-            <i className="ti ti-tag fs-5"></i>
-            Tags
-          </span>
-          <i className="ti ti-chevron-down"></i>
-        </DropdownToggle>
-        <DropdownMenu end className="p-1" style={{ minWidth: 260 }}>
-          {loading ? (
-            <div className="d-flex align-items-center gap-2 px-2 py-2 text-muted small">
-              <Spinner size="sm" color="primary" />
-              <span>Loading...</span>
-            </div>
-          ) : items.length ? (
-            <div className="d-flex flex-wrap align-items-center justify-content-start gap-2 px-2 py-2">
-              {items.map((t, idx) => {
-                const label = getTagLabel(t);
-                const key = getTagKey(t);
-                const assigned = key ? tagIds.has(String(key)) : false;
-                const color = String(t?.color || "").trim();
-                const badgeText = getContrastText(color);
-
-                return (
-                  <button
-                    key={t?.id ?? `${label}-${idx}`}
-                    type="button"
-                    className={`btn btn-sm rounded-pill d-inline-flex align-items-center gap-2 ${
-                      assigned ? "border border-2" : "border"
-                    }`}
-                    style={{
-                      background: color || "rgba(var(--secondary), 0.06)",
-                      color: color ? badgeText : "rgba(var(--dark), 0.8)",
-                      borderColor: assigned
-                        ? "rgba(var(--primary), 0.55)"
-                        : "rgba(var(--secondary), 0.18)",
-                      maxWidth: 240,
-                    }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSelectTag(t);
-                    }}
-                    title={label}
-                    aria-pressed={assigned}
-                  >
-                    {assigned ? <i className="ti ti-check" /> : null}
-                    <span className="text-truncate" style={{ maxWidth: 200 }}>
-                      {label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="px-2 py-2 text-muted small">No tags.</div>
-          )}
-
-          <DropdownItem divider />
-          <DropdownItem
-            onClick={() => {
-              setOpen(false);
-              setManageOpen(true);
-            }}
+      <div className="d-flex flex-column gap-2">
+        <Dropdown isOpen={open} toggle={toggle}>
+          <DropdownToggle
+            tag="button"
+            type="button"
+            disabled={disabled}
+            className="btn d-flex align-items-center justify-content-between px-0 w-100"
           >
-            <div className="d-flex align-items-center justify-content-between">
-              <span className="d-inline-flex align-items-center gap-2">
-                <i className="ti ti-settings fs-5"></i>
-                Manage
-              </span>
-              <i className="ti ti-chevron-right"></i>
-            </div>
-          </DropdownItem>
-        </DropdownMenu>
-      </Dropdown>
+            <span className="d-flex align-items-center gap-2">
+              <i className="ti ti-tag fs-5"></i>
+              Tags
+            </span>
+            <i className="ti ti-chevron-down"></i>
+          </DropdownToggle>
+          <DropdownMenu end className="p-1" style={{ minWidth: 260 }}>
+            {loading ? (
+              <div className="d-flex align-items-center gap-2 px-2 py-2 text-muted small">
+                <Spinner size="sm" color="primary" />
+                <span>Loading...</span>
+              </div>
+            ) : items.length ? (
+              <div className="d-flex flex-wrap align-items-center justify-content-start gap-2 px-2 py-2">
+                {items.map((t, idx) => {
+                  const label = getTagLabel(t);
+                  const key = getTagKey(t);
+                  const assigned = key ? tagIds.has(String(key)) : false;
+                  const color = String(t?.color || "").trim();
+                  const badgeText = getContrastText(color);
+                  const busy = !!togglingByTagId[String(key)];
+
+                  return (
+                    <button
+                      key={t?.id ?? `${label}-${idx}`}
+                      type="button"
+                      className={`btn btn-sm d-inline-flex align-items-center gap-2 ${
+                        assigned ? "border border-2" : "border"
+                      }`}
+                      style={{
+                        background: color || "rgba(var(--secondary), 0.06)",
+                        color: color ? badgeText : "rgba(var(--dark), 0.8)",
+                        borderColor: assigned
+                          ? "rgba(var(--primary), 0.55)"
+                          : "rgba(var(--secondary), 0.18)",
+                        maxWidth: 240,
+                        borderRadius: 8,
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSelectTag(t);
+                      }}
+                      title={label}
+                      aria-pressed={assigned}
+                      disabled={busy}
+                    >
+                      {busy ? <Spinner size="sm" /> : assigned ? <i className="ti ti-check" /> : null}
+                      <span className="text-truncate" style={{ maxWidth: 200 }}>
+                        {label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-2 py-2 text-muted small">No tags.</div>
+            )}
+
+            <DropdownItem divider />
+            <DropdownItem
+              onClick={() => {
+                setOpen(false);
+                setManageOpen(true);
+              }}
+            >
+              <div className="d-flex align-items-center justify-content-between">
+                <span className="d-inline-flex align-items-center gap-2">
+                  <i className="ti ti-settings fs-5"></i>
+                  Manage
+                </span>
+                <i className="ti ti-chevron-right"></i>
+              </div>
+            </DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+
+        {selectedTagItems.length ? (
+          <div className="d-flex flex-wrap gap-2">
+            {selectedTagItems.map((tag, idx) => {
+              const label = getTagLabel(tag);
+              const key = getTagKey(tag) || `${idx}`;
+              const color = String(tag?.color || "").trim();
+              const badgeText = getContrastText(color);
+              const busy = !!togglingByTagId[String(key)];
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className="btn btn-sm d-inline-flex align-items-center gap-2 border"
+                  style={{
+                    background: color || "rgba(var(--secondary), 0.08)",
+                    color: color ? badgeText : "rgba(var(--dark), 0.85)",
+                    borderColor: "rgba(var(--secondary), 0.18)",
+                    maxWidth: "100%",
+                    borderRadius: 8,
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectTag(tag);
+                  }}
+                  disabled={disabled || busy}
+                  title={`${label} - click to remove`}
+                >
+                  {busy ? <Spinner size="sm" /> : <i className="ti ti-x fs-6" />}
+                  <span className="text-truncate" style={{ maxWidth: 220 }}>
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
 
       <TaskTagsManagerModal
         projectId={projectId}

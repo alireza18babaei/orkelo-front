@@ -19,7 +19,9 @@ const toDisplayValue = (value) => {
 };
 
 const AboutMe = () => {
-  const profile = useSelector((s) => s.auth?.profile ?? null);
+  const profile = useSelector(
+    (s) => s.auth?.profile ?? s.auth?.user?.profile ?? null,
+  );
 
   const summaryText = useMemo(() => {
     const raw = profile?.about_me ?? "";

@@ -28,6 +28,7 @@ const revokeObjectUrl = (value) => {
 };
 
 const buildProfileForm = (profile, user) => ({
+  name: user?.name ?? "",
   about_me: profile?.about_me ?? "",
   work_passion: profile?.work_passion ?? "",
   email: profile?.email ?? user?.email ?? "",
@@ -61,7 +62,9 @@ const toDisplay = (value) => {
 const ProfileCard = () => {
   const dispatch = useDispatch();
   const user = useSelector((s) => s.auth?.user ?? null);
-  const profile = useSelector((s) => s.auth?.profile ?? null);
+  const profile = useSelector(
+    (s) => s.auth?.profile ?? s.auth?.user?.profile ?? null,
+  );
   const profileUpdateStatus = useSelector(
     (s) => s.auth?.profileUpdateStatus ?? "idle",
   );
@@ -95,6 +98,7 @@ const ProfileCard = () => {
 
   const quickItems = useMemo(
     () => [
+      { key: "name", label: "Full Name", value: user?.name },
       { key: "work_passion", label: "Work Passion", value: profile?.work_passion },
       { key: "email", label: "Contact Email", value: profile?.email },
       { key: "contact", label: "Contact", value: profile?.contact },
@@ -270,14 +274,6 @@ const ProfileCard = () => {
                 {user?.name ?? "User"}
               </h5>
               <p className="text-muted mb-1">{toDisplay(profile?.email ?? user?.email)}</p>
-              <div className="d-flex flex-wrap justify-content-center gap-2">
-                {user?.user_type ? (
-                  <span className="badge text-bg-light">{user.user_type}</span>
-                ) : null}
-                {user?.status ? (
-                  <span className="badge text-bg-primary">{user.status}</span>
-                ) : null}
-              </div>
 
               {!isEditing ? (
                 <Button
@@ -296,6 +292,38 @@ const ProfileCard = () => {
             {isEditing ? (
               <Form className="app-form" onSubmit={handleSubmit}>
                 <Row className="g-3">
+                  <Col xs={12} md={6}>
+                    <div className="mb-0">
+                      <Label for="profileName" className="small text-muted mb-1">
+                        Full Name
+                      </Label>
+                      <Input
+                        id="profileName"
+                        name="name"
+                        value={form.name}
+                        onChange={handleFormChange}
+                        autoComplete="name"
+                        maxLength={80}
+                        disabled={saving}
+                      />
+                    </div>
+                  </Col>
+                  <Col xs={12} md={6}>
+                    <div className="mb-0">
+                      <Label for="profileEmail" className="small text-muted mb-1">
+                        Profile Email
+                      </Label>
+                      <Input
+                        id="profileEmail"
+                        name="email"
+                        type="email"
+                        value={form.email}
+                        onChange={handleFormChange}
+                        disabled={saving}
+                      />
+                    </div>
+                  </Col>
+
                   <Col xs={12}>
                     <div className="mb-0">
                       <Label for="profileAboutMe" className="small text-muted mb-1">
@@ -327,22 +355,6 @@ const ProfileCard = () => {
                       />
                     </div>
                   </Col>
-                  <Col xs={12} md={6}>
-                    <div className="mb-0">
-                      <Label for="profileEmail" className="small text-muted mb-1">
-                        Profile Email
-                      </Label>
-                      <Input
-                        id="profileEmail"
-                        name="email"
-                        type="email"
-                        value={form.email}
-                        onChange={handleFormChange}
-                        disabled={saving}
-                      />
-                    </div>
-                  </Col>
-
                   <Col xs={12} md={6}>
                     <div className="mb-0">
                       <Label for="profileContact" className="small text-muted mb-1">

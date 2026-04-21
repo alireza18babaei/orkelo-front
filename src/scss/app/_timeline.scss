@@ -19,6 +19,11 @@
       position: absolute;
       top: 0px;
       left: -17px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 50%;
       background-color: var(--white);
     }
 
@@ -62,6 +67,11 @@
 
     .side-timeline-icon {
       position: absolute;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 50%;
       background-color: var(--white);
     }
 

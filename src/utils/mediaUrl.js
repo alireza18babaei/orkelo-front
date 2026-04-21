@@ -20,6 +20,55 @@ export const getBackendOrigin = () => {
   }
 };
 
+const encodePathForUrl = (path) =>
+  String(path || "")
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+const normalizePublicDiskPath = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const normalizeCleaned = (cleanedValue) => {
+    const cleaned = String(cleanedValue || "").replace(/^\/+/, "");
+    if (!cleaned) return "";
+    if (cleaned.startsWith("storage/")) return cleaned.slice("storage/".length);
+    if (
+      cleaned.startsWith("user_avatars/") ||
+      cleaned.startsWith("company_images/") ||
+      cleaned.startsWith("project_images/") ||
+      cleaned.startsWith("task_attachments/") ||
+      cleaned.startsWith("attachments/")
+    ) {
+      return cleaned;
+    }
+    return "";
+  };
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (!LOCAL_HOSTNAMES.has(parsed.hostname)) return "";
+      return normalizeCleaned(parsed.pathname);
+    } catch {
+      return "";
+    }
+  }
+
+  return normalizeCleaned(raw);
+};
+
+export const resolvePublicMediaUrl = (value) => {
+  const backendOrigin = getBackendOrigin();
+  const publicDiskPath = normalizePublicDiskPath(value);
+
+  if (!backendOrigin || !publicDiskPath) return "";
+
+  return `${backendOrigin}/api/v1/media/public/${encodePathForUrl(publicDiskPath)}`;
+};
+
 const hashString = (value) => {
   const input = String(value ?? "");
   let hash = 0;
@@ -44,6 +93,9 @@ export const resolveUserAvatarUrl = (value) => {
   if (raw.startsWith("/assets/")) return raw;
   if (raw.startsWith("assets/")) return `/${raw}`;
 
+  const publicMediaUrl = resolvePublicMediaUrl(raw);
+  if (publicMediaUrl) return publicMediaUrl;
+
   const backendOrigin = getBackendOrigin();
 
   if (/^https?:\/\//i.test(raw)) {
@@ -60,24 +112,7 @@ export const resolveUserAvatarUrl = (value) => {
   }
 
   const cleaned = raw.replace(/^\/+/, "");
-  if (!backendOrigin) {
-    if (cleaned.startsWith("storage/")) return `/${cleaned}`;
-    if (cleaned.startsWith("user_avatars/")) return `/storage/${cleaned}`;
-    if (cleaned.startsWith("company_images/")) return `/storage/${cleaned}`;
-    return raw;
-  }
-
-  if (cleaned.startsWith("storage/")) {
-    return `${backendOrigin}/${cleaned}`;
-  }
-
-  if (cleaned.startsWith("user_avatars/")) {
-    return `${backendOrigin}/storage/${cleaned}`;
-  }
-
-  if (cleaned.startsWith("company_images/")) {
-    return `${backendOrigin}/storage/${cleaned}`;
-  }
+  if (!backendOrigin) return raw;
 
   if (cleaned.includes("/")) {
     return `${backendOrigin}/${cleaned}`;

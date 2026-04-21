@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Loader from "../../Components/Loader";
-import { logoutThunk, meThunk } from "../../store/auth/authSlice";
+import { meThunk } from "../../store/auth/authSlice";
 import { getCompanyContextThunk } from "../../store/company/companyContextSlice";
 import { getProjectsThunk } from "../../store/projects/projectsSlice";
 
@@ -61,12 +61,6 @@ export default function RequireAuth() {
     companyContextUserId,
     dispatch,
   ]);
-
-  useEffect(() => {
-    if (!user && meStatus === "failed") {
-      dispatch(logoutThunk());
-    }
-  }, [user, meStatus, dispatch]);
 
   if (!accessToken) {
     return <Navigate to="/login" replace state={{ from: location }} />;

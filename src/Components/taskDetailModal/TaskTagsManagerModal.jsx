@@ -7,7 +7,7 @@ import {
   getProjectTagsThunk,
   updateProjectTagThunk,
 } from "../../store/tags/tagsSlice";
-import { alertSuccess, toastError } from "../../utils/sweetAlert";
+import { toastError, toastSuccess } from "../../utils/sweetAlert";
 
 const getTagLabel = (tag) => tag?.name ?? `Tag ${tag?.id ?? ""}`;
 
@@ -82,7 +82,7 @@ export default function TaskTagsManagerModal({ projectId, isOpen, toggle, onChan
       const payload = { name };
       if (newTagColor) payload.color = newTagColor;
       await dispatch(createProjectTagThunk({ projectId, payload })).unwrap();
-      alertSuccess();
+      toastSuccess("Tag created");
       setNewTagName("");
       setAdding(false);
       setNewTagColor(PRESET_COLORS[0]);
@@ -119,7 +119,7 @@ export default function TaskTagsManagerModal({ projectId, isOpen, toggle, onChan
       const payload = { name };
       if (editTagColor) payload.color = editTagColor;
       await dispatch(updateProjectTagThunk({ projectId, tagId, payload })).unwrap();
-      alertSuccess();
+      toastSuccess("Tag updated");
       cancelEditTag();
       onChanged?.();
     } catch (err) {
@@ -137,7 +137,7 @@ export default function TaskTagsManagerModal({ projectId, isOpen, toggle, onChan
     if (!projectId || !tagId) return;
     try {
       await dispatch(deleteProjectTagThunk({ projectId, tagId })).unwrap();
-      alertSuccess();
+      toastSuccess("Tag Deleted");
       onChanged?.();
     } catch (err) {
       const msg =

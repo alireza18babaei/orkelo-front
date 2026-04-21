@@ -99,8 +99,8 @@
 }
 
 .account-security {
-    .account-security-img {  
-        text-align: end; 
+    .account-security-img {
+        text-align: end;
     }
 }
 
@@ -249,7 +249,7 @@
 
                 &.app-small-touchspin {
                     height: 28px;
-                    
+
                 }
             }
         }
@@ -323,7 +323,6 @@
 .app-timeline-box{
     .timeline-border-box{
         border: 1px dashed rgb(var(--dark), 0.2);
-        padding: 10px;
         border-radius: 10px;
     }
 }

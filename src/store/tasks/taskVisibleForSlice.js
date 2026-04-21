@@ -2,6 +2,23 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../api/axios.js";
 
 /* ===================== THUNK ===================== */
+export const getTaskVisibleForUserThunk = createAsyncThunk(
+  "taskVisibleForUser/getPeople",
+  async ({ projectId, taskId }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(
+        `/projects/${projectId}/tasks/${taskId}/visible-for`
+      );
+
+      return {
+        taskId,
+        people: data.data.items || [],
+      };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Request failed");
+    }
+  }
+);
 
 export const toggleTaskVisibleForUserThunk = createAsyncThunk(
   "taskVisibleFor/toggle",
@@ -53,6 +70,28 @@ const taskVisibleForSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+
+      .addCase(getTaskVisibleForUserThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+
+      .addCase(getTaskVisibleForUserThunk.fulfilled, (state, action) => {
+        state.loading = false;
+
+        const { taskId, people } = action.payload;
+
+        state.byTaskId[taskId] = {
+          ...(state.byTaskId[taskId] ?? {}),
+          people,
+        };
+      })
+
+      .addCase(getTaskVisibleForUserThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
       .addCase(toggleTaskVisibleForUserThunk.pending, (state) => {
         state.loading = true;
         state.error = null;

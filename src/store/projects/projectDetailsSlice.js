@@ -58,10 +58,16 @@ export const getProjectDetailsThunk = createAsyncThunk(
 
 export const deleteProjectThunk = createAsyncThunk(
   "project/deleteProject",
-  async (id, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const res = await api.delete(`/projects/${id}`);
-      return res.data;
+      const id = typeof arg === "object" && arg !== null ? arg.id : arg;
+      const payload =
+        typeof arg === "object" && arg !== null ? arg.payload ?? {} : {};
+      const res = await api.delete(`/projects/${id}`, { data: payload });
+      return {
+        ...(res.data ?? {}),
+        deletedId: id,
+      };
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
     }
@@ -84,7 +90,13 @@ export const updateProjectThunk = createAsyncThunk(
   "project/updateProject",
   async ({ id, payload }, { rejectWithValue }) => {
     try {
-      const res = await api.patch(`/projects/${id}`, payload);
+      let res;
+      if (payload instanceof FormData) {
+        payload.append("_method", "PATCH");
+        res = await api.post(`/projects/${id}`, payload);
+      } else {
+        res = await api.patch(`/projects/${id}`, payload);
+      }
       return res.data?.data;
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
@@ -216,9 +228,10 @@ export const createTaskTagThunk = createAsyncThunk(
 
 export const toggleTaskTagThunk = createAsyncThunk(
   "tags/toggleTaskTag",
-  async ({ projectId, taskId, tagId }, { rejectWithValue }) => {
+  async ({ projectId, taskId, tagId, detach = false }, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/projects/${projectId}/tags/${tagId}/tasks/${taskId}`);
+      const url = `/projects/${projectId}/tags/${tagId}/tasks/${taskId}`;
+      const res = detach ? await api.delete(url) : await api.post(url);
       const raw = res?.data?.data ?? null;
       const tagIds = Array.isArray(raw?.tag_ids) ? raw.tag_ids : null;
 
@@ -245,10 +258,25 @@ export const updateTaskTagThunk = createAsyncThunk(
 
 export const deleteTaskTagThunk = createAsyncThunk(
   "tags/deleteTaskTag",
-  async (_, { rejectWithValue }) =>
-    rejectWithValue({
-      message: "Backend route for removing task tag is not available.",
-    }),
+  async ({ projectId, taskId, tagId }, { rejectWithValue }) => {
+    try {
+      const res = await api.delete(
+        `/projects/${projectId}/tags/${tagId}/tasks/${taskId}`,
+      );
+      const raw = res?.data?.data ?? null;
+      const tagIds = Array.isArray(raw?.tag_ids) ? raw.tag_ids : null;
+
+      return { projectId, taskId, tagId, tagIds };
+    } catch (err) {
+      const status = err?.response?.status ?? err?.status ?? null;
+      if (status === 404) {
+        return rejectWithValue(
+          "Tag یا Task متعلق به این پروژه نیست (یا دسترسی ندارید).",
+        );
+      }
+      return rejectWithValue(getErrorMessage(err));
+    }
+  },
 );
 
 /* =========================

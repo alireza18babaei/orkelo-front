@@ -1,6 +1,6 @@
-import React from "react";
+import { useState } from "react";
 import { Col, Container, Row } from "reactstrap";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -10,11 +10,20 @@ import {
   signUpThunk,
 } from "../../../store/auth/authSlice";
 import { toastError } from "../../../utils/sweetAlert";
+import TermsModal from "../../../Components/TermsModal/TermsModal";
 
 const SignUp = () => {
-  const { accessToken, loading } = useSelector((s) => s.auth);
+  const { accessToken, loading, user } = useSelector((s) => s.auth);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const location = useLocation();
+
+  const [termsOpen, setTermsOpen] = useState(false);
+
+  const toggleTerms = () => setTermsOpen((prev) => !prev);
+
+  const isLogin = location.pathname === "/login";
+  const isSignup = location.pathname === "/signup";
 
   const {
     register,
@@ -32,25 +41,27 @@ const SignUp = () => {
     mode: "onSubmit",
   });
 
-  if (accessToken) return <Navigate to={"/"} replace />;
+  if (accessToken && user) return <Navigate to="/" replace />;
 
   const onSubmit = async (data) => {
     try {
       const res = await dispatch(signUpThunk(data)).unwrap();
+
       try {
         await dispatch(assignRandomAvatarThunk()).unwrap();
       } catch {
-        // Keep signup successful even if random avatar upload fails.
+        // signup remains successful even if avatar fails
       }
+
       navigate("/", {
         replace: true,
-        state: { flash: res?.message || "Registration Successfull"},
+        state: { flash: res?.message || "Registration Successful" },
       });
     } catch (e) {
       const err =
         e?.message ||
         e?.data?.message ||
-        "Somthing went wrong, please try again";
+        "Something went wrong, please try again";
       toastError(err);
     }
   };
@@ -61,39 +72,52 @@ const SignUp = () => {
         <div className="main-container">
           <Container>
             <Row className="sign-in-content-bg">
-              <Col lg={6} className="image-contentbox d-none d-lg-block">
-                <div className="form-container">
-                  <div className="signup-content mt-4">
-                    <span>
-                      <img
-                        src="/assets/images/logo/1.png"
-                        alt=""
-                        className="img-fluid "
-                      />
-                    </span>
-                  </div>
+              <Col lg={6} className="image-contentbox position-relative">
+                <Link
+                  to="/login"
+                  className={`signin-btn text-decoration-none ${
+                    isLogin ? "bg-white text-muted" : "bg-orkelo text-white"
+                  }`}
+                >
+                  Sign In
+                </Link>
 
+                <Link
+                  to="/signup"
+                  className={`signup-btn text-decoration-none ${
+                    isSignup ? "bg-white text-muted" : "bg-orkelo text-white"
+                  }`}
+                >
+                  Sign Up
+                </Link>
+
+                <div className="form-container">
                   <div className="signup-bg-img">
                     <img
-                      src="/assets/images/login/02.png"
-                      alt=""
+                      src="/assets/images/pages/Orkelologo-white.png"
+                      alt="signup"
                       className="img-fluid"
                     />
                   </div>
                 </div>
               </Col>
+
               <Col lg={6} className="form-contentbox">
                 <div className="form-container">
                   <form className="app-form" onSubmit={handleSubmit(onSubmit)}>
                     <Row>
                       <Col xs={12}>
                         <div className="mb-5 text-center text-lg-start">
-                          <h2 className="text-primary f-w-600">
-                            Create Account
+                          <h2 className="f-w-600 text-muted">
+                            Create Your{" "}
+                            <span className="color-orkelo fw-bold">Account</span>
                           </h2>
-                          <p>Get Started For Free Today!</p>
+                          <p className="fw-400">
+                            Get started for free today
+                          </p>
                         </div>
                       </Col>
+
                       <Col xs={12}>
                         <div className="mb-3">
                           <label htmlFor="username" className="form-label">
@@ -101,9 +125,10 @@ const SignUp = () => {
                           </label>
                           <input
                             type="text"
-                            className="form-control"
+                            className="form-control b-r-14"
                             placeholder="Enter Your Username"
                             id="username"
+                            autoComplete="username"
                             {...register("name")}
                           />
                           {errors.name && (
@@ -113,16 +138,18 @@ const SignUp = () => {
                           )}
                         </div>
                       </Col>
+
                       <Col xs={12}>
                         <div className="mb-3">
-                          <label htmlFor="username" className="form-label">
-                            Email
+                          <label htmlFor="email" className="form-label">
+                            Email Address
                           </label>
                           <input
                             type="email"
-                            className="form-control"
+                            className="form-control b-r-14"
                             placeholder="Enter Your Email"
                             id="email"
+                            autoComplete="email"
                             {...register("email")}
                           />
                           {errors.email && (
@@ -132,6 +159,7 @@ const SignUp = () => {
                           )}
                         </div>
                       </Col>
+
                       <Col md={6}>
                         <div className="mb-3">
                           <label htmlFor="password" className="form-label">
@@ -139,9 +167,10 @@ const SignUp = () => {
                           </label>
                           <input
                             type="password"
-                            className="form-control"
+                            className="form-control b-r-14"
                             placeholder="Enter Your Password"
                             id="password"
+                            autoComplete="new-password"
                             {...register("password")}
                           />
                           {errors.password && (
@@ -151,6 +180,7 @@ const SignUp = () => {
                           )}
                         </div>
                       </Col>
+
                       <Col md={6}>
                         <div className="mb-3">
                           <label
@@ -161,9 +191,10 @@ const SignUp = () => {
                           </label>
                           <input
                             type="password"
-                            className="form-control"
-                            placeholder="Enter Your Password"
+                            className="form-control b-r-14"
+                            placeholder="Confirm Your Password"
                             id="password_confirmation"
+                            autoComplete="new-password"
                             {...register("password_confirmation")}
                           />
                           {errors.password_confirmation && (
@@ -173,37 +204,47 @@ const SignUp = () => {
                           )}
                         </div>
                       </Col>
+
                       <Col xs={12}>
-                        <div className="d-flex justify-content-between gap-3">
-                          <div className="form-check mb-3">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              {...register("terms")}
-                              id="checkDefault"
-                            />
-                            <label
-                              className="form-check-label text-secondary"
-                              htmlFor="checkDefault"
+                        <div className="form-check mb-3">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            {...register("terms")}
+                            id="terms"
+                          />
+
+                          <label
+                            className="form-check-label text-secondary"
+                            htmlFor="terms"
+                          >
+                            Accept{" "}
+                            <button
+                              type="button"
+                              onClick={toggleTerms}
+                              className="btn btn-link p-0 border-0 color-orkelo text-decoration-underline"
+                              style={{ verticalAlign: "baseline" }}
                             >
-                              Accept Terms & Conditions
-                            </label>
-                            {errors.terms && (
-                              <div>
-                                <small className="text-danger">
-                                  {errors.terms.message}
-                                </small>
-                              </div>
-                            )}
-                          </div>
+                              Terms & Conditions
+                            </button>
+                          </label>
+
+                          {errors.terms && (
+                            <div>
+                              <small className="text-danger">
+                                {errors.terms.message}
+                              </small>
+                            </div>
+                          )}
                         </div>
                       </Col>
+
                       <Col xs={12}>
                         <div className="mb-3">
                           <button
                             disabled={loading}
                             type="submit"
-                            className="btn btn-primary w-100"
+                            className="btn bg-orkelo text-white w-100 py-md-3 b-r-14"
                           >
                             {loading ? (
                               <span className="d-inline-flex align-items-center gap-2">
@@ -216,14 +257,14 @@ const SignUp = () => {
                           </button>
                         </div>
                       </Col>
+
                       <Col xs={12}>
                         <div className="text-center text-lg-start">
-                          Already Have A Account?{" "}
+                          Already have an account?{" "}
                           <Link
                             to="/login"
-                            className="link-primary text-decoration-underline"
+                            className="color-orkelo text-decoration"
                           >
-                            {" "}
                             Sign in
                           </Link>
                         </div>
@@ -236,6 +277,8 @@ const SignUp = () => {
           </Container>
         </div>
       </div>
+
+      <TermsModal isOpen={termsOpen} toggle={toggleTerms} />
     </div>
   );
 };

@@ -12,7 +12,17 @@ const getInitials = (name) => {
 };
 
 function MenuItem(props) {
-  const { iconClass, type, path, badgeCount, children: links, name, collapseId, title } = props;
+  const {
+    iconClass,
+    type,
+    path,
+    badgeCount,
+    children: links,
+    name,
+    collapseId,
+    title,
+    isSidebarCompact = false,
+  } = props;
 
   const { pathname } = useLocation();
 
@@ -47,6 +57,8 @@ function MenuItem(props) {
   }, [links, isActive]);
 
   const dropdownOpen = type === "dropdown" && hasActiveInTree;
+  const compactProjectList =
+    isSidebarCompact && type === "dropdown" && collapseId === "projects-collapse";
 
   if (type !== "dropdown") {
     return (
@@ -67,20 +79,24 @@ function MenuItem(props) {
         </li>
       )}
 
-      <li className={`${dropdownOpen ? "active" : ""}`}>
+      <li
+        className={`${dropdownOpen ? "active" : ""} ${
+          compactProjectList ? "sidebar-dropdown--compact-projects" : ""
+        }`}
+      >
         <Link
           to={collapseId ? `#${collapseId}` : "#"}
           data-bs-toggle="collapse"
-          aria-expanded={dropdownOpen}
+          aria-expanded={dropdownOpen || compactProjectList}
           aria-controls={collapseId}
           className="d-flex align-items-center justify-content-between"
         >
-          <span className="d-flex align-items-center gap-2">
+          <span className="d-flex align-items-center">
             {iconClass && <i className={iconClass}></i>}
             <span>{name}</span>
 
             {badgeCount && (
-              <span className="badge text-bg-success badge-notification ms-2">
+              <span className="badge text-bg-primary badge-notification ms-2">
                 {badgeCount}
               </span>
             )}
@@ -88,7 +104,12 @@ function MenuItem(props) {
         </Link>
 
         {links && (
-          <ul className={`collapse ${dropdownOpen ? "show" : ""}`} id={collapseId}>
+          <ul
+            className={`collapse ${dropdownOpen || compactProjectList ? "show" : ""} ${
+              compactProjectList ? "sidebar-submenu--compact-projects" : ""
+            }`}
+            id={collapseId}
+          >
             {(links || []).map((link, index) => {
               const active = link.path && link.path !== "#" && isActive(link.path);
               const itemClass = [active ? "active" : "", link.className]
@@ -108,7 +129,7 @@ function MenuItem(props) {
                       {link.name}
                     </Link>
                   ) : (
-                    <NavLink to={link.path}>
+                    <NavLink to={link.path} title={link.name}>
                       {link.avatarSrc ? (
                         <span className="sidebar-project-avatar" aria-hidden="true">
                           <img src={link.avatarSrc} alt="" />

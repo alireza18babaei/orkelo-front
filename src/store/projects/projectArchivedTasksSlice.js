@@ -18,7 +18,7 @@ export const restoreArchivedTasks = createAsyncThunk(
   "tasks/restoreArchives",
   async({projectId, columnId, taskId}, {rejectWithValue})=> {
     try {
-      const res = await api.patch(`/project/${projectId}/columns/${columnId}/tasks/${taskId}/toggle-archive`);
+      const res = await api.patch(`/projects/${projectId}/columns/${columnId}/tasks/${taskId}/toggle-archive`);
       return res.data;
     } catch(err) {
       return rejectWithValue(getErrorMessage(err));

@@ -5,7 +5,7 @@ import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import BoardColumn from "./BoardColumn";
 import BoardItem from "../../../../Components/BoardItem";
 import { formatMonthDay } from "../../../../utils/date";
-import { resolveUserAvatarWithFallback } from "../../../../utils/mediaUrl";
+import { resolveUserAvatarUrl } from "../../../../utils/mediaUrl";
 
 /* =========================
    Helpers
@@ -58,6 +58,26 @@ const normalizeBoard = (columns = []) => {
   return { columns: nextColumns, tasksById };
 };
 
+const normalizeColumnTaskCount = (value) => {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return null;
+};
+
+const getColumnTaskCount = (column) => {
+  if (!column) return null;
+  if (!column.tasksUndefined) return Array.isArray(column.taskIds) ? column.taskIds.length : 0;
+
+  return normalizeColumnTaskCount(
+    column.tasks_count ?? column.tasksCount ?? column.task_count ?? column.taskCount,
+  );
+};
+
 const isTaskCompleted = (task) =>
   !!task?.is_completed ||
   String(task?.status || "").toLowerCase() === "done" ||
@@ -65,6 +85,13 @@ const isTaskCompleted = (task) =>
 
 const getTaskDueValue = (task) =>
   task?.due_at ?? null;
+
+const isTaskOverdue = (task) => {
+  const raw = getTaskDueValue(task);
+  if (!raw) return false;
+  const dueTime = new Date(raw).getTime();
+  return Number.isFinite(dueTime) && dueTime < Date.now();
+};
 
 const formatTimeHHmm = (raw) => {
   if (!raw) return "";
@@ -79,7 +106,7 @@ const formatTimeHHmm = (raw) => {
 
 const formatTaskDate = (task) => {
   const raw = getTaskDueValue(task);
-  if (!raw) return formatMonthDay(task?.created_at) || "";
+  if (!raw) return "";
   const d = new Date(raw);
   if (!Number.isNaN(d.getTime())) {
     const base = formatMonthDay(raw) || "";
@@ -88,8 +115,6 @@ const formatTaskDate = (task) => {
   }
   return String(raw);
 };
-
-const DEFAULT_UNASSIGNED_AVATAR = "/assets/images/avtar/3.png";
 
 const pickFirstNonEmpty = (values = []) => {
   for (const value of values) {
@@ -119,17 +144,9 @@ const resolveTaskAssigneeAvatar = (task) => {
     assignee?.avatar,
   ]);
 
-  if (!assignee) {
-    return DEFAULT_UNASSIGNED_AVATAR;
-  }
+  if (!assignee) return "";
 
-  const seed = pickFirstNonEmpty([
-    assignee?.id,
-    task?.assignee_id,
-    task?.id,
-  ]);
-
-  return resolveUserAvatarWithFallback(assigneeAvatarRaw, seed);
+  return resolveUserAvatarUrl(assigneeAvatarRaw);
 };
 
 const TaskCard = memo(function TaskCard({
@@ -144,6 +161,7 @@ const TaskCard = memo(function TaskCard({
 }) {
   if (!task) return null;
   const completed = isTaskCompleted(task);
+  const overdue = !completed && isTaskOverdue(task);
   const trackingActive =
     String(task?.type ?? "")
       .toLowerCase()
@@ -203,7 +221,9 @@ const TaskCard = memo(function TaskCard({
         {...taskDragHandleProps}
         className={`${isDragging ? "is-dragging" : ""} ${
           completed ? "task-completed" : ""
-        } ${flashCompleted ? "task-completed-flash" : ""} ${
+        } ${overdue ? "task-overdue" : ""} ${
+          flashCompleted ? "task-completed-flash" : ""
+        } ${
           enter ? "task-enter" : ""
         } ${trackingActive ? "task-tracking task-tracking-bounce" : ""}`}
         data-ani={trackingActive ? "bounce" : undefined}
@@ -226,8 +246,9 @@ const TaskCard = memo(function TaskCard({
           }
           onDragHandleKeyDown?.(e);
         }}
+        taskId={task.id}
         taskTitle={task.text || "Task"}
-        taskBody={task.description || "-"}
+        taskBody={task.description || ""}
         taskDate={formatTaskDate(task)}
         taskFileAttachCount={getTaskAttachmentCount(task) || "0"}
         taskTags={task.tags ?? []}
@@ -268,6 +289,7 @@ const Column = memo(function Column({
   onAddTask,
   onTaskClick,
   innerRef,
+  contentRef,
   draggableProps,
   dragHandleProps,
   isDragging,
@@ -281,8 +303,21 @@ const Column = memo(function Column({
 
   flashCompletedTaskIds,
   enterTaskIds,
+  registerContentRef,
 }) {
   const taskIds = column.taskIds || [];
+  const columnTaskCount = getColumnTaskCount(column);
+  const setColumnContentRef = useCallback(
+    (node) => {
+      if (typeof contentRef === "function") {
+        contentRef(node);
+      } else if (contentRef && typeof contentRef === "object") {
+        contentRef.current = node;
+      }
+      registerContentRef?.(column.id, node);
+    },
+    [column.id, contentRef, registerContentRef],
+  );
 
   const footer = useMemo(() => {
     if (addTaskColumnId === String(column.id)) {
@@ -312,7 +347,7 @@ const Column = memo(function Column({
     }
 
     return (
-      <div className="d-flex align-items-center justify-content-center py-3">
+      <div className="d-flex align-items-center justify-content-center py-2">
         <button
           type="button"
           className="btn btn-primary btn-sm"
@@ -348,10 +383,12 @@ const Column = memo(function Column({
           }`}
           columnTitle={column.title || column.name || "Column"}
           columnIcon={column.icon ?? column.iconClass ?? column.icon_code ?? null}
+          taskCount={columnTaskCount}
           actions={column.actions}
-          contentRef={dropProvided.innerRef}
+          contentRef={setColumnContentRef}
           contentClassName={dropSnapshot.isDraggingOver ? "is-over" : ""}
           footer={footer}
+          contentInnerRef={dropProvided.innerRef}
           contentProps={dropProvided.droppableProps}
           {...(draggableProps || {})}
         >
@@ -425,6 +462,36 @@ const ProjectBoardColumns = ({
   const [enterTaskIds, setEnterTaskIds] = useState(() => new Set());
   const seenTaskIdsRef = useRef(new Set());
   const enterTimeoutsRef = useRef({});
+  const columnContentElsRef = useRef({});
+  const pendingCreatedTaskScrollColumnIdRef = useRef(null);
+  const readyCreatedTaskScrollColumnIdRef = useRef(null);
+
+  const registerColumnContentRef = useCallback((columnId, node) => {
+    const key = String(columnId ?? "");
+    if (!key) return;
+    if (node) {
+      columnContentElsRef.current[key] = node;
+      return;
+    }
+    delete columnContentElsRef.current[key];
+  }, []);
+
+  const scrollColumnToBottom = useCallback((columnId, behavior = "smooth") => {
+    const key = String(columnId ?? "");
+    const el = columnContentElsRef.current[key];
+    if (!el) return false;
+
+    if (typeof el.scrollTo === "function") {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior,
+      });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
+
+    return true;
+  }, []);
 
   useEffect(() => {
     if (isDraggingRef.current) return;
@@ -492,6 +559,19 @@ const ProjectBoardColumns = ({
         }, 650);
       });
     }
+
+    const pendingScrollColumnId = pendingCreatedTaskScrollColumnIdRef.current;
+    if (pendingScrollColumnId && newIds.length) {
+      const newTaskIdSet = new Set(newIds.map(String));
+      const targetColumn = (nextBoard.columns || []).find(
+        (col) => String(col.id) === String(pendingScrollColumnId),
+      );
+
+      if (targetColumn?.taskIds?.some((id) => newTaskIdSet.has(String(id)))) {
+        readyCreatedTaskScrollColumnIdRef.current = String(pendingScrollColumnId);
+        pendingCreatedTaskScrollColumnIdRef.current = null;
+      }
+    }
   }, [columnsProp]);
 
   useEffect(() => {
@@ -502,6 +582,39 @@ const ProjectBoardColumns = ({
       enterTimeoutsRef.current = {};
     };
   }, []);
+
+  useEffect(() => {
+    const targetColumnId = readyCreatedTaskScrollColumnIdRef.current;
+    if (!targetColumnId) return undefined;
+
+    let raf1 = 0;
+    let raf2 = 0;
+    let fallbackTimeout = 0;
+
+    const runScroll = () => {
+      const didScroll = scrollColumnToBottom(targetColumnId, "smooth");
+      if (didScroll) {
+        readyCreatedTaskScrollColumnIdRef.current = null;
+        return;
+      }
+
+      fallbackTimeout = window.setTimeout(() => {
+        if (scrollColumnToBottom(targetColumnId, "auto")) {
+          readyCreatedTaskScrollColumnIdRef.current = null;
+        }
+      }, 80);
+    };
+
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(runScroll);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(fallbackTimeout);
+    };
+  }, [board, scrollColumnToBottom]);
 
   const startAddTask = (column) => {
     if (!column?.id) return;
@@ -520,7 +633,19 @@ const ProjectBoardColumns = ({
       cancelAddTask();
       return;
     }
-    onAddTask?.(column, text);
+    const targetColumnId = String(column?.id ?? "");
+    if (targetColumnId) {
+      pendingCreatedTaskScrollColumnIdRef.current = targetColumnId;
+    }
+
+    const maybePromise = onAddTask?.(column, text);
+    if (maybePromise && typeof maybePromise.then === "function") {
+      maybePromise.catch(() => {
+        if (pendingCreatedTaskScrollColumnIdRef.current === targetColumnId) {
+          pendingCreatedTaskScrollColumnIdRef.current = null;
+        }
+      });
+    }
     cancelAddTask();
   };
 
@@ -713,6 +838,7 @@ const ProjectBoardColumns = ({
                       onSubmitAddTask={submitAddTask}
                       flashCompletedTaskIds={flashCompletedTaskIds}
                       enterTaskIds={enterTaskIds}
+                      registerContentRef={registerColumnContentRef}
                     />
                   </PortalDraggable>
                 )}

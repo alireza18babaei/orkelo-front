@@ -7,13 +7,17 @@ import {
   Spinner,
 } from "reactstrap";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleTaskVisibleForUserThunk } from "../../store/tasks/taskVisibleForSlice";
-import { getTaskPeopleThunk } from "../../store/tasks/taskPeopleSlice";
-import { getProjectMembersThunk } from "../../store/projects/projectMembersSlice";
+import {
+  getTaskVisibleForUserThunk,
+  toggleTaskVisibleForUserThunk,
+} from "../../store/tasks/taskVisibleForSlice";
 import { toastError } from "../../utils/sweetAlert";
 import { resolveUserAvatarWithFallback } from "../../utils/mediaUrl";
 
+/* helpers */
+
 const getUserKey = (u) => String(u?.id ?? "");
+
 const getUserLabel = (u) =>
   u?.name ?? u?.email ?? `User ${getUserKey(u)}`;
 
@@ -35,31 +39,8 @@ const getUserInitials = (u) => {
   return parts.map((p) => p[0]?.toUpperCase() || "").join("") || "NA";
 };
 
-const mapProjectMembersToPeople = (members) => {
-  const list = Array.isArray(members) ? members : [];
-  const byId = new Map();
-
-  list.forEach((member) => {
-    const src = member ?? {};
-    const person = {
-      id: src?.id ?? null,
-      name: src?.name ?? "",
-      email: src?.email ?? "",
-      avatar: src?.avatar ?? null,
-    };
-
-    const key = getUserKey(person);
-    if (!key || byId.has(key)) return;
-
-    byId.set(key, person);
-  });
-
-  return Array.from(byId.values());
-};
-
 export default function TaskVisibleForDropdown({
                                                  projectId,
-                                                 columnId = null,
                                                  taskId,
                                                  disabled = false,
                                                }) {
@@ -71,70 +52,34 @@ export default function TaskVisibleForDropdown({
     setOpen((v) => !v);
   };
 
-  const peopleState = useSelector((s) => s.taskPeople);
-  const projectMembersState = useSelector((s) => s.projectMembers);
   const visibleForState = useSelector((s) => s.taskVisibleFor);
 
-  const matches =
-    peopleState?.projectId != null &&
-    peopleState?.taskId != null &&
-    String(peopleState.projectId) === String(projectId) &&
-    String(peopleState.taskId) === String(taskId);
+  const taskState = visibleForState?.byTaskId?.[taskId] ?? {};
 
-  const projectMembersMatch =
-    projectMembersState?.projectId != null &&
-    String(projectMembersState.projectId) === String(projectId);
+  const people = Array.isArray(taskState.people) ? taskState.people : [];
 
-  const taskPeople = matches ? peopleState?.people || [] : [];
-
-  const projectMemberPeople = useMemo(
-    () =>
-      projectMembersMatch
-        ? mapProjectMembersToPeople(projectMembersState?.items || [])
-        : [],
-    [projectMembersMatch, projectMembersState?.items]
-  );
-
-  const people = taskPeople.length ? taskPeople : projectMemberPeople;
-
-
-  const visibleForIdsRaw =
-    visibleForState?.byTaskId?.[taskId]?.visibleForUserIds;
-
-  const visibleForIds = Array.isArray(visibleForIdsRaw)
-    ? visibleForIdsRaw
+  const visibleForIds = Array.isArray(taskState.visibleForUserIds)
+    ? taskState.visibleForUserIds
     : [];
-
 
   const loading = visibleForState?.loading;
 
   const visibleForSet = useMemo(
-    () => new Set((visibleForIds || []).map(String)),
+    () => new Set(visibleForIds.map(String)),
     [visibleForIds]
   );
 
-  /* load people */
+  /* load people when dropdown opens */
+
   useEffect(() => {
     if (!open) return;
     if (!projectId || !taskId) return;
 
-    dispatch(getTaskPeopleThunk({ projectId, taskId, columnId }));
-  }, [open, dispatch, projectId, taskId, columnId]);
+    dispatch(getTaskVisibleForUserThunk({ projectId, taskId }));
+  }, [open, dispatch, projectId, taskId]);
 
-  /* load project members fallback */
-  useEffect(() => {
-    if (!open) return;
-    if (!projectId) return;
+  /* toggle visible-for */
 
-    const needsProjectMembers =
-      !projectMembersMatch || projectMembersState?.status === "idle";
-
-    if (!needsProjectMembers) return;
-
-    dispatch(getProjectMembersThunk(projectId));
-  }, [open, dispatch, projectId, projectMembersMatch, projectMembersState?.status]);
-
-  /* ✅ toggle visible-for */
   const toggleVisibleFor = async (user) => {
     if (!projectId || !taskId) return;
 
@@ -153,6 +98,7 @@ export default function TaskVisibleForDropdown({
       toastError(err || "Update visible-for failed");
     }
   };
+
 
   return (
     <Dropdown isOpen={open} toggle={toggle}>
@@ -174,11 +120,11 @@ export default function TaskVisibleForDropdown({
         {loading ? (
           <div className="d-flex align-items-center gap-2 px-2 py-2 text-muted small">
             <Spinner size="sm" color="primary" />
-            <span>Loading...</span>
+            Loading...
           </div>
-        ) : people.length ? (
-          people.map((u, idx) => {
-            const key = getUserKey(u) || `${idx}`;
+        ) : (
+          people.map((u) => {
+            const key = getUserKey(u);
             const selected = visibleForSet.has(String(key));
             const avatar = getUserAvatar(u);
 
@@ -202,7 +148,8 @@ export default function TaskVisibleForDropdown({
                           className="img-fluid"
                           onError={(e) => {
                             e.currentTarget.onerror = null;
-                            e.currentTarget.src = DEFAULT_WATCHER_AVATAR;
+                            e.currentTarget.src =
+                              DEFAULT_WATCHER_AVATAR;
                           }}
                         />
                       ) : (
@@ -226,10 +173,6 @@ export default function TaskVisibleForDropdown({
               </DropdownItem>
             );
           })
-        ) : (
-          <div className="px-2 py-2 text-muted small">
-            No people.
-          </div>
         )}
       </DropdownMenu>
     </Dropdown>

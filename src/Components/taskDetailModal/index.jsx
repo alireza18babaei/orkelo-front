@@ -16,7 +16,6 @@ import {
 import api from "../../api/axios";
 import {
   alertConfirm,
-  alertSuccess,
   toastError,
   toastSuccess,
 } from "../../utils/sweetAlert";
@@ -40,7 +39,7 @@ import TaskVisibleForDropdown from "./TaskVisibleForDropdown";
 import ChecklistTree from "./ChecklistTree";
 import TaskTimer from "./TaskTimer";
 import { restoreArchivedTasks } from "../../store/projects/projectArchivedTasksSlice";
-import {resolveUserAvatarWithFallback} from "../../utils/mediaUrl.js";
+import { getTextDirectionProps } from "../../utils/textDirection";
 
 const sortChecklistByPosition = (items = []) =>
   [...(items || [])].sort((a, b) => {
@@ -70,6 +69,12 @@ const clampNonNegativeInt = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0;
   return Math.max(0, Math.floor(parsed));
+};
+
+const AUTO_GROW_TEXTAREA_STYLE = {
+  resize: "none",
+  overflow: "hidden",
+  height: "auto",
 };
 
 const parseDateMs = (value) => {
@@ -110,7 +115,7 @@ const formatHoursMinutes = (totalSeconds) => {
   return `${hours}h ${minutes}m`;
 };
 
-const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
+const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectMembers = [] }) => {
   const propTask = task || {};
 
   const taskDetailState = useSelector((s) => s.taskDetail);
@@ -220,6 +225,18 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
   const trackedTotalLabel = useMemo(
     () => formatHoursMinutes(trackedTotalSeconds),
     [trackedTotalSeconds],
+  );
+  const taskTextDirectionProps = useMemo(
+    () => getTextDirectionProps(taskText, AUTO_GROW_TEXTAREA_STYLE),
+    [taskText],
+  );
+  const descriptionDirectionProps = useMemo(
+    () => getTextDirectionProps(description, AUTO_GROW_TEXTAREA_STYLE),
+    [description],
+  );
+  const rootInputDirectionProps = useMemo(
+    () => getTextDirectionProps(rootInput, AUTO_GROW_TEXTAREA_STYLE),
+    [rootInput],
   );
 
   const taskColumnId = t?.column_id ?? t?.columnId ?? t?.column?.id ?? null;
@@ -436,11 +453,17 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
     [dispatch, effectiveProjectId, resolvedColumnId, taskColumnId],
   );
 
+  const isDueAtOverdue = useMemo(() => {
+    if (!dueAt || taskCompleted) return false;
+    const ms = new Date(dueAt).getTime();
+    return Number.isFinite(ms) && ms < Date.now();
+  }, [dueAt, taskCompleted]);
+
   useEffect(() => {
     if (!isOpen) return;
     const resize = () => {
       const nodes = document.querySelectorAll(
-        ".checklist-textarea, .autogrow-textarea",
+        ".task-title-textarea, .checklist-textarea, .autogrow-textarea",
       );
       nodes.forEach((el) => {
         el.style.height = "auto";
@@ -449,7 +472,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
     };
     const id = requestAnimationFrame(resize);
     return () => cancelAnimationFrame(id);
-  }, [isOpen, checklistItems]);
+  }, [isOpen, checklistItems, description, taskText]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -598,18 +621,25 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
     }
   };
 
-  const formatDueAtForApi = (value) => {
+  const parseDueAtInput = (value) => {
     if (!value) return null;
     const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return null;
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
 
+  const formatDueAtForApi = (value) => {
+    const d = parseDueAtInput(value);
+    if (!d) return null;
+
+    // Backend stores due_at in UTC; send UTC clock parts so the selected local
+    // time survives a round-trip back to the client without shifting.
     const pad2 = (n) => String(n).padStart(2, "0");
-    const y = d.getFullYear();
-    const m = pad2(d.getMonth() + 1);
-    const day = pad2(d.getDate());
-    const hh = pad2(d.getHours());
-    const mm = pad2(d.getMinutes());
-    const ss = pad2(d.getSeconds());
+    const y = d.getUTCFullYear();
+    const m = pad2(d.getUTCMonth() + 1);
+    const day = pad2(d.getUTCDate());
+    const hh = pad2(d.getUTCHours());
+    const mm = pad2(d.getUTCMinutes());
+    const ss = pad2(d.getUTCSeconds());
     return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
   };
 
@@ -627,12 +657,14 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
     );
   };
 
-  const updateTaskDueAt = async (isoValue) => {
+  const updateTaskDueAt = async (value) => {
     if (!projectId || !taskId) return;
+    const parsedValue = parseDueAtInput(value);
+    const isoValue = parsedValue?.toISOString?.() ?? null;
     if ((savedDueAt ?? "") === (isoValue ?? "")) return;
     try {
       setDueSaving(true);
-      const dueAtForApi = formatDueAtForApi(isoValue) ?? isoValue;
+      const dueAtForApi = formatDueAtForApi(parsedValue);
       try {
         await api.patch(`/projects/${projectId}/tasks/${taskId}/due-time`, {
           due_at: dueAtForApi,
@@ -713,7 +745,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
       await api.delete(
         `/projects/${projectId}/columns/${columnId}/tasks/${taskId}`,
       );
-      alertSuccess();
+      toastSuccess("Task deleted successfuly");
       onDeleted?.({ taskId, columnId });
       onClose?.();
     } catch (err) {
@@ -807,10 +839,48 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
       const completedAt =
         deriveCompletedAt(updated) ?? new Date().toISOString();
       setTaskCompletedAt(completedAt);
-      alertSuccess("Task completed");
+      toastSuccess("Task completed");
       refreshDetail();
     } catch (err) {
       toastError(err?.message || "Complete task failed");
+    } finally {
+      setTaskCompleting(false);
+    }
+  };
+
+  const handleRestoreTask = async () => {
+    if (!taskCompleted || taskCompleting) return;
+    if (!effectiveProjectId || !taskId) return;
+
+    try {
+      setTaskCompleting(true);
+      let res;
+      try {
+        res = resolvedColumnId ? await updateTask({ status: "open" }) : null;
+      } catch (err) {
+        res = await api.patch(`/projects/${effectiveProjectId}/tasks/${taskId}/complete`, {
+          is_completed: false,
+        });
+      }
+
+      const updated = res?.data?.data ?? res?.data ?? {
+        status: "open",
+        completed_at: null,
+      };
+
+      dispatch(
+        updateTaskInColumn({
+          columnId: resolvedColumnId,
+          taskId,
+          patch: updated,
+        }),
+      );
+      setTaskCompleted(false);
+      setTaskCompletedAt(null);
+      toastSuccess("Task restored");
+      refreshDetail();
+    } catch (err) {
+      toastError(err?.message || "Restore task failed");
     } finally {
       setTaskCompleting(false);
     }
@@ -870,7 +940,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
   function copyTaskLink() {
     const taskLink = window.location.href;
     navigator.clipboard.writeText(taskLink);
-    alertSuccess("Link Copied");
+    toastSuccess("Link Copied");
   }
 
   return (
@@ -879,7 +949,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
         isOpen={isOpen}
         toggle={handleClose}
         size="lg"
-        className="task-detail-modal-dialog"
+        className="task-detail-modal-dialog byekan-font"
       >
         <div className="d-flex justify-content-between p-4 border border-bottom-1 rounded-top task-detail-modal__header">
           <div className="d-flex align-items-end gap-2">
@@ -956,6 +1026,17 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
                       destructive: false,
                       onClick: archiveTask,
                     },
+                    ...(taskCompleted
+                      ? [
+                          {
+                            key: "restore",
+                            label: "Restore",
+                            icon: "ti-refresh",
+                            destructive: false,
+                            onClick: handleRestoreTask,
+                          },
+                        ]
+                      : []),
                     {
                       key: "delete",
                       label: "Delete",
@@ -977,6 +1058,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
         </div>
 
         <ModalBody
+          className="task-detail-modal__body"
           style={{
             paddingRight: 0,
             paddingTop: 0,
@@ -989,61 +1071,66 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
           ) : (
             <div className="row g-4">
               <div
-                className="col-12 col-lg-8 pt-2 pb-5"
+                className="col-12 col-lg-8 pt-2 pb-5 task-detail-modal__main"
                 style={{ paddingRight: 0 }}
               >
                 <div className="pb-3">
-                  <input
-                    ref={taskTextInputRef}
-                    type="text"
-                    className="form-control f-s-16 border-0 mb-3"
-                    placeholder="Task title"
-                    value={taskText}
-                    onChange={(e) => setTaskText(e.target.value)}
-                    onBlur={(e) => {
-                      if (skipNextTaskTextBlurSaveRef.current) {
-                        skipNextTaskTextBlurSaveRef.current = false;
-                        return;
-                      }
-                      updateTaskText(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" ||
-                        e.code === "NumpadEnter" ||
-                        e.keyCode === 13
-                      ) {
-                        e.preventDefault();
-                        updateTaskText(e.currentTarget.value);
-                        skipNextTaskTextBlurSaveRef.current = true;
-                        e.currentTarget.blur();
-                      }
-                    }}
-                  />
-                  <textarea
-                    className="form-control f-s-14 border-0 autogrow-textarea"
-                    rows="1"
-                    placeholder="Click to add a description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    onBlur={(e) => updateTaskDescription(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (isSaveCombo(e)) {
-                        e.preventDefault();
-                        updateTaskDescription(e.currentTarget.value);
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    onInput={(e) => {
-                      e.currentTarget.style.height = "auto";
-                      e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
-                    }}
-                    style={{
-                      resize: "none",
-                      overflow: "hidden",
-                      height: "auto",
-                    }}
-                  />
+                  <div className="task-detail-editor task-detail-editor--title mb-3">
+                    <textarea
+                      ref={taskTextInputRef}
+                      className="form-control f-s-16 border-0 task-title-textarea"
+                      rows="1"
+                      placeholder="Task title"
+                      value={taskText}
+                      onChange={(e) => setTaskText(e.target.value)}
+                      onBlur={(e) => {
+                        if (skipNextTaskTextBlurSaveRef.current) {
+                          skipNextTaskTextBlurSaveRef.current = false;
+                          return;
+                        }
+                        updateTaskText(e.target.value);
+                      }}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" ||
+                          e.code === "NumpadEnter" ||
+                          e.keyCode === 13
+                        ) {
+                          e.preventDefault();
+                          updateTaskText(e.currentTarget.value);
+                          skipNextTaskTextBlurSaveRef.current = true;
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      onInput={(e) => {
+                        e.currentTarget.style.height = "auto";
+                        e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                      }}
+                      {...taskTextDirectionProps}
+                    />
+                  </div>
+                  <div className="task-detail-editor task-detail-editor--description">
+                    <textarea
+                      className="form-control f-s-14 border-0 autogrow-textarea"
+                      rows="1"
+                      placeholder="Click to add a description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      onBlur={(e) => updateTaskDescription(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (isSaveCombo(e)) {
+                          e.preventDefault();
+                          updateTaskDescription(e.currentTarget.value);
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      onInput={(e) => {
+                        e.currentTarget.style.height = "auto";
+                        e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                      }}
+                      {...descriptionDirectionProps}
+                    />
+                  </div>
                 </div>
 
                 <div className="py-3">
@@ -1112,11 +1199,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
                           e.currentTarget.style.height = "auto";
                           e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
                         }}
-                        style={{
-                          resize: "none",
-                          overflow: "hidden",
-                          height: "auto",
-                        }}
+                        {...rootInputDirectionProps}
                         autoFocus
                         disabled={checklistBusyId === "root"}
                       />
@@ -1139,12 +1222,16 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
                   taskId={taskId}
                   activities={detailTask?.activities ?? t?.activities ?? []}
                   comments={detailTask?.comments ?? t?.comments ?? []}
+                  checklistItems={
+                    detailTask?.checklist_items ?? t?.checklist_items ?? []
+                  }
                   onRefresh={refreshDetail}
+                  projectMembers={projectMembers}
                 />
               </div>
 
               <div className="col-12 col-lg-4">
-                <div className="bg-light-dark text-black p-3 h-100">
+                <div className="task-detail-modal__sidebar p-3 h-100">
                   <div className="d-flex flex-column gap-3">
                     <TaskTimer
                       taskId={taskId}
@@ -1162,15 +1249,20 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
                         tag="button"
                         type="button"
                         disabled={dueSaving}
-                        className="btn d-flex align-items-center justify-content-between px-0 border-bottom w-100"
+                        className={`btn d-flex align-items-center justify-content-between px-0  w-100 task-detail-due-toggle ${
+                          isDueAtOverdue ? "is-overdue" : ""
+                        }`}
                         style={{ boxShadow: "none" }}
                       >
                         <span className="d-flex flex-column align-items-start">
-                          <span className="d-flex align-items-center gap-2">
+                          <span className="d-flex align-items-center gap-2 task-detail-due-toggle__title">
                             <i className="ti ti-calendar fs-5"></i>
                             Due time
+                            {isDueAtOverdue ? (
+                              <span className="badge text-bg-danger">Overdue</span>
+                            ) : null}
                           </span>
-                          <span className="small">
+                          <span className="small task-detail-due-toggle__value">
                             {dueAt ? formatDateTime(dueAt) : "Set time"}
                           </span>
                         </span>
@@ -1214,7 +1306,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted }) => {
                               disabled={dueSaving || !dueDraftDate}
                               onClick={() => {
                                 if (!dueDraftDate) return;
-                                updateTaskDueAt(dueDraftDate.toISOString());
+                                updateTaskDueAt(dueDraftDate);
                               }}
                             >
                               {dueSaving ? (

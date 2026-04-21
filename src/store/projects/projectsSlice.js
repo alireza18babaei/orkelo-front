@@ -92,7 +92,11 @@ export const projectsSlice = createSlice({
     })
     builder.addCase(deleteProjectThunk.fulfilled, (state, action) => {
       const deletedId =
-        action.meta?.arg ?? action.payload?.data?.id ?? action.payload?.id;
+        action.payload?.deletedId ??
+        action.meta?.arg?.id ??
+        action.meta?.arg ??
+        action.payload?.data?.id ??
+        action.payload?.id;
       if (!deletedId) return;
       state.items = state.items.filter(
         (p) => String(p.id) !== String(deletedId)

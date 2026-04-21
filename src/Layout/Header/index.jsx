@@ -23,7 +23,7 @@ const Header = () => {
     return (
         <header className="header-main">
             <Container fluid>
-                <Row>
+                <Row className="d-flex justify-content-between w-100">
                     <Col xs="6" sm="4" className="d-flex align-items-center header-left p-0">
                         <div ref={headerMenuRef} className="position-relative">
                             <button

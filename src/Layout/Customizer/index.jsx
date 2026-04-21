@@ -90,9 +90,6 @@ const setBootstrapThemeVars = ({ primaryRgb, secondaryRgb }) => {
 };
 
 const Customizer = ({ showLauncher = true }) => {
-  const [sidebarOption, setSidebarOption] = useState(
-    getLocalStorageItem("sidebar-option", "vertical-sidebar"),
-  );
   const [colorOption, setColorOption] = useState(
     getLocalStorageItem("color-option", "default"),
   );
@@ -127,7 +124,6 @@ const Customizer = ({ showLauncher = true }) => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     const normalizedTheme = storedTheme === "dark" ? "dark" : "light";
 
-    setSidebarOption(storedSidebar);
     setColorOption(storedColor);
     setTextOption(storedText);
     setWallpaperOption(normalizedWallpaper);
@@ -168,14 +164,6 @@ const Customizer = ({ showLauncher = true }) => {
 
     applyWallpaperToApp(normalizedWallpaper);
   }, []);
-
-  const handleSidebarOptionChange = (option) => {
-    setSidebarOption(option);
-    $("nav")
-      .removeClass("horizontal-sidebar vertical-sidebar dark-sidebar")
-      .addClass(option);
-    setLocalStorageItem("sidebar-option", option);
-  };
 
   const handleColorOptionChange = (option) => {
     setColorOption(option);
@@ -282,55 +270,6 @@ const Customizer = ({ showLauncher = true }) => {
         </div>
 
         <div className="offcanvas-body">
-          <div className="app-divider-v secondary my-3">
-            <h6 className="mt-2">Sidebar option</h6>
-          </div>
-          <ul className="sidebar-option d-flex gap-1">
-            <li
-              className={sidebarOption === "vertical-sidebar" ? "selected" : ""}
-              onClick={() => handleSidebarOptionChange("vertical-sidebar")}
-            >
-              <ul>
-                <li className="header"></li>
-                <li className="sidebar"></li>
-                <li className="body">
-                  <span className="badge text-bg-secondary b-r-6">
-                    {" "}
-                    Vertical
-                  </span>
-                </li>
-              </ul>
-            </li>
-            <li
-              className={
-                sidebarOption === "horizontal-sidebar" ? "selected" : ""
-              }
-              onClick={() => handleSidebarOptionChange("horizontal-sidebar")}
-            >
-              <ul>
-                <li className="header h-20">
-                  <span className="badge text-bg-secondary b-r-6">
-                    {" "}
-                    Horizontal
-                  </span>
-                </li>
-                <li className="body w-100"></li>
-              </ul>
-            </li>
-            <li
-              className={sidebarOption === "dark-sidebar" ? "selected" : ""}
-              onClick={() => handleSidebarOptionChange("dark-sidebar")}
-            >
-              <ul>
-                <li className="header "></li>
-                <li className="sidebar bg-dark-600"></li>
-                <li className="body">
-                  <span className="badge text-bg-secondary b-r-6"> Dark </span>
-                </li>
-              </ul>
-            </li>
-          </ul>
-
           <h6 className="mt-3">Color Hint</h6>
           <ul className="color-hint p-0 d-flex gap-1">
             <li
@@ -400,7 +339,6 @@ const Customizer = ({ showLauncher = true }) => {
               lg
             </li>
           </ul>
-
           <div className="app-divider-v secondary my-3">
             <h6 className="mt-2">Wallpapers</h6>
           </div>

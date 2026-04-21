@@ -171,11 +171,11 @@ const ProjectColumnModal = ({
             <div className="d-flex align-items-center gap-2">
               <div
                 className="border rounded-3 bg-light d-flex align-items-center justify-content-center"
-                style={{ width: 44, height: 38, flex: "0 0 44px" }}
+                style={{ width: 56, height: 46, flex: "0 0 56px" }}
                 title={previewIconClass || ""}
               >
                 {previewIconClass ? (
-                  <i className={previewIconClass} style={{ fontSize: 18 }} />
+                  <i className={previewIconClass} style={{ fontSize: 24 }} />
                 ) : (
                   <span className="text-muted small">—</span>
                 )}
@@ -274,7 +274,7 @@ const ProjectColumnModal = ({
             className="mt-3"
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
               gap: 10,
             }}
           >
@@ -289,32 +289,28 @@ const ProjectColumnModal = ({
                   : pickerTab === "fontawesome"
                     ? String(it?.icon ?? "")
                     : String(it?.className ?? "");
+              const isSelected = cls === previewIconClass;
 
               return (
                 <button
                   key={key}
                   type="button"
-                  className="btn btn-light border text-start"
+                  className="btn border d-flex align-items-center justify-content-center"
                   onClick={() => pick(cls)}
-                  style={{ padding: 10, minHeight: 72 }}
-                  title={cls}
+                  style={{
+                    minHeight: 88,
+                    padding: 12,
+                    background: isSelected ? "rgba(var(--primary), 0.12)" : "var(--white)",
+                    borderColor: isSelected ? "rgba(var(--primary), 0.45)" : "",
+                  }}
+                  title={label}
+                  aria-label={label}
                 >
-                  <div className="d-flex align-items-center gap-2">
-                    <span
-                      className="d-inline-flex align-items-center justify-content-center border bg-white rounded-3"
-                      style={{ width: 34, height: 34, flex: "0 0 34px" }}
-                    >
-                      <i className={cls} style={{ fontSize: 18 }} />
-                    </span>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="small fw-semibold text-truncate">
-                        {String(label)}
-                      </div>
-                      <div className="text-muted small text-truncate">
-                        {cls}
-                      </div>
-                    </div>
-                  </div>
+                  <i
+                    className={cls}
+                    style={{ fontSize: 30, lineHeight: 1 }}
+                    aria-hidden="true"
+                  />
                 </button>
               );
             })}

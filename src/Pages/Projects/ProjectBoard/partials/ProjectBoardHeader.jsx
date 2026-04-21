@@ -1,7 +1,7 @@
 // ProjectBoardHeader.jsx (updated)
-import { Button, Col, Row } from "reactstrap";
-import ActionDropdown from "../../../../Components/ActionDropdown";
-import { useEffect, useRef, useState } from "react";
+import { Button, Col, Row } from 'reactstrap';
+import ActionDropdown from '../../../../Components/ActionDropdown';
+import { useEffect, useRef, useState } from 'react';
 
 const ProjectBoardHeader = ({
   projectName,
@@ -19,7 +19,7 @@ const ProjectBoardHeader = ({
     $(function () {
       var tooltip_init = {
         init: function () {
-          $("Button").tooltip();
+          $('Button').tooltip();
         },
       };
       tooltip_init.init();
@@ -27,80 +27,70 @@ const ProjectBoardHeader = ({
   }, []);
 
   return (
-    <Row className="project-board-header m-1 gx-2 align-items-center">
-      <Col lg={7} md={6} xs={12} className="mt-1">
-        <div className="project-board-header__meta">
-          <ul className="app-line-breadcrumbs">
-            <li>
-              <span>
-                <i className="ph-duotone ph-rocket-launch f-s-16"></i> Projects
-              </span>
-            </li>
-          </ul>
-          <h4 className="main-title mb-1 text-primary">{projectName || ""}</h4>
-          <p className="project-board-header__subtitle mb-0">
-            Manage your project board from one place.
-          </p>
+    <Row className='project-board-header m-1 gx-2 align-items-center'>
+      <Col lg={7} md={6} xs={12} className='mt-1'>
+        <div className='project-board-header__meta'>
+          <h4 className='main-title mb-1 text-primary'>{projectName || ''}</h4>
         </div>
       </Col>
 
-      <Col lg={5} md={6} xs={12} className="mt-1">
-        <div className="project-board-header__actions-wrap">
-          <div className="project-board-header__actions">
+      <Col lg={5} md={6} xs={12} className='mt-1'>
+        <div className='project-board-header__actions-wrap'>
+          <div className='project-board-header__actions'>
             <Button
-              className="btn project-board-header__add-btn"
+              className='btn project-board-header__add-btn'
               onClick={onAddColumn}
               disabled={disableAddColumn}
             >
-              <i className="ph ph-plus-circle"></i>
+              <i className='ph ph-plus-circle'></i>
               <span>Add Column</span>
             </Button>
             <Button
-              className="btn project-board-header__icon-btn"
+              className='btn project-board-header__icon-btn'
               onClick={onEdit}
               disabled={disableEdit}
-              aria-label="Project edit"
-              title="Edit project"
+              aria-label='Project edit'
+              title='Edit project'
             >
-              <i className="ph ph-pencil-line"></i>
+              <i className='ph ph-pencil-line'></i>
             </Button>
             <Button
-              className="btn project-board-header__icon-btn"
-              aria-label="Project archives"
-              title="Project archives"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#offcanvas-archived-tasks"
-              aria-controls="offcanvas-archived-tasks"
+              className='btn project-board-header__icon-btn'
+              aria-label='Project archives'
+              title='Project archives'
+              data-bs-toggle='offcanvas'
+              data-bs-target='#offcanvas-archived-tasks'
+              aria-controls='offcanvas-archived-tasks'
             >
-              <i className="ph ph-archive"></i>
+              <i className='ph ph-archive'></i>
             </Button>
             <Button
-              className="btn project-board-header__icon-btn"
-              aria-label="Deleted tasks"
-              title="Deleted tasks"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#offcanvas-deleted-tasks"
-              aria-controls="offcanvas-deleted-tasks"
+              className='btn project-board-header__icon-btn'
+              aria-label='Deleted tasks'
+              title='Deleted tasks'
+              data-bs-toggle='offcanvas'
+              data-bs-target='#offcanvas-deleted-tasks'
+              aria-controls='offcanvas-deleted-tasks'
             >
-              <i className="iconoir-bin-half"></i>
+              <i className='iconoir-bin-half'></i>
             </Button>
             <Button
-              className="btn project-board-header__icon-btn"
+              className='btn project-board-header__icon-btn'
               onClick={onInfo}
               disabled={disableInfo}
-              aria-label="Project information"
-              title="Project information"
+              aria-label='Project information'
+              title='Project information'
             >
-              <i className="ph ph-info"></i>
+              <i className='ph ph-info'></i>
             </Button>
             <Button
-              className="btn project-board-header__icon-btn danger"
+              className='btn project-board-header__icon-btn danger'
               onClick={onDelete}
               disabled={disableDelete}
-              aria-label="Project delete"
-              title="Delete project"
+              aria-label='Project delete'
+              title='Delete project'
             >
-              <i className="ph ph-trash-simple"></i>
+              <i className='ph ph-trash-simple'></i>
             </Button>
           </div>
         </div>

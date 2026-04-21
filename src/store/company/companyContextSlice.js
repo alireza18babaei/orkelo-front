@@ -1,9 +1,9 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import api from "../../api/axios";
-import { getErrorMessage } from "../../utils/getError";
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import api from '../../api/axios';
+import { getErrorMessage } from '../../utils/getError';
 
 const normalizeCompany = (item) => {
-  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
 
   const rawId = item.id;
   const parsedId = Number(rawId);
@@ -18,13 +18,13 @@ const normalizeCompany = (item) => {
 
   return {
     id,
-    name: String(item.name ?? "").trim(),
+    name: String(item.name ?? '').trim(),
     status: item.status ?? null,
     image: item.image ?? null,
     is_default: Boolean(item.is_default),
     is_active: Boolean(item.is_active),
     membership:
-      item.membership && typeof item.membership === "object"
+      item.membership && typeof item.membership === 'object'
         ? item.membership
         : null,
   };
@@ -52,12 +52,13 @@ const normalizeContextPayload = (payload) => {
   const data = root?.data ?? root ?? null;
 
   const activeCompany = normalizeCompany(
-    data?.active_company ?? data?.company ?? root?.active_company ?? root?.company,
+    data?.active_company ??
+      data?.company ??
+      root?.active_company ??
+      root?.company,
   );
 
-  const companies = uniqueById(
-    data?.companies ?? root?.companies ?? [],
-  );
+  const companies = uniqueById(data?.companies ?? root?.companies ?? []);
 
   const activeId =
     activeCompany?.id ??
@@ -110,16 +111,14 @@ const upsertCompany = (items, nextCompany) => {
 const normalizeCompanyFromMutationPayload = (payload) => {
   const root = payload?.data ?? payload ?? null;
   const data = root?.data ?? root ?? null;
-  return normalizeCompany(
-    data?.company ?? root?.company ?? data,
-  );
+  return normalizeCompany(data?.company ?? root?.company ?? data);
 };
 
 export const getCompanyContextThunk = createAsyncThunk(
-  "companyContext/get",
+  'companyContext/get',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get("/companies/my");
+      const res = await api.get('/companies/my');
       return normalizeContextPayload(res?.data);
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
@@ -128,10 +127,10 @@ export const getCompanyContextThunk = createAsyncThunk(
 );
 
 export const setActiveCompanyThunk = createAsyncThunk(
-  "companyContext/setActive",
+  'companyContext/setActive',
   async ({ companyId }, { rejectWithValue }) => {
     try {
-      const res = await api.patch("/companies/my/active", {
+      const res = await api.patch('/companies/my/active', {
         company_id: companyId,
       });
 
@@ -151,26 +150,36 @@ export const setActiveCompanyThunk = createAsyncThunk(
 );
 
 export const updateMyCompanyThunk = createAsyncThunk(
-  "companyContext/updateMyCompany",
+  'companyContext/updateMyCompany',
   async ({ name, image } = {}, { rejectWithValue }) => {
     try {
-      const hasImage = typeof File !== "undefined" && image instanceof File;
+      const hasImage = typeof File !== 'undefined' && image instanceof File;
       const payload = hasImage ? new FormData() : {};
 
       if (name !== undefined) {
-        const trimmedName = String(name ?? "").trim();
+        const trimmedName = String(name ?? '').trim();
+
         if (hasImage) {
-          payload.append("name", trimmedName);
+          payload.append('name', trimmedName);
         } else {
           payload.name = trimmedName;
         }
       }
 
+      let res;
+
       if (hasImage) {
-        payload.append("image", image);
+        payload.append('image', image);
+
+        if (!payload.has('_method')) {
+          payload.append('_method', 'PATCH');
+        }
+
+        res = await api.post('/companies/my', payload);
+      } else {
+        res = await api.patch('/companies/my', payload);
       }
 
-      const res = await api.patch("/companies/my", payload);
       return {
         company: normalizeCompanyFromMutationPayload(res?.data),
       };
@@ -181,10 +190,10 @@ export const updateMyCompanyThunk = createAsyncThunk(
 );
 
 export const removeMyCompanyImageThunk = createAsyncThunk(
-  "companyContext/removeMyCompanyImage",
+  'companyContext/removeMyCompanyImage',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.delete("/companies/my/image");
+      const res = await api.delete('/companies/my/image');
       return {
         company: normalizeCompanyFromMutationPayload(res?.data),
       };
@@ -199,18 +208,18 @@ const initialState = {
   items: [],
   activeCompany: null,
   activeCompanyId: null,
-  status: "idle",
+  status: 'idle',
   error: null,
   switchingCompanyId: null,
   switchError: null,
-  updateStatus: "idle",
+  updateStatus: 'idle',
   updateError: null,
-  removeImageStatus: "idle",
+  removeImageStatus: 'idle',
   removeImageError: null,
 };
 
 const companyContextSlice = createSlice({
-  name: "companyContext",
+  name: 'companyContext',
   initialState,
   reducers: {
     clearCompanyContextState: () => initialState,
@@ -223,7 +232,7 @@ const companyContextSlice = createSlice({
         nextUserId != null &&
         String(state.ownerUserId) !== String(nextUserId);
 
-      state.status = "loading";
+      state.status = 'loading';
       state.error = null;
       state.ownerUserId = nextUserId;
 
@@ -234,16 +243,17 @@ const companyContextSlice = createSlice({
       }
     });
     builder.addCase(getCompanyContextThunk.fulfilled, (state, action) => {
-      const { companies, activeCompany, activeCompanyId } = action.payload || {};
-      state.status = "succeeded";
+      const { companies, activeCompany, activeCompanyId } =
+        action.payload || {};
+      state.status = 'succeeded';
       state.error = null;
       state.items = uniqueById(companies);
       state.activeCompany = activeCompany ?? null;
       state.activeCompanyId = activeCompanyId ?? null;
     });
     builder.addCase(getCompanyContextThunk.rejected, (state, action) => {
-      state.status = "failed";
-      state.error = action.payload || { message: "Failed to load companies" };
+      state.status = 'failed';
+      state.error = action.payload || { message: 'Failed to load companies' };
       state.items = [];
       state.activeCompany = null;
       state.activeCompanyId = null;
@@ -254,7 +264,8 @@ const companyContextSlice = createSlice({
       state.switchingCompanyId = action.meta?.arg?.companyId ?? null;
     });
     builder.addCase(setActiveCompanyThunk.fulfilled, (state, action) => {
-      const companyId = action.payload?.company?.id ?? action.payload?.companyId ?? null;
+      const companyId =
+        action.payload?.company?.id ?? action.payload?.companyId ?? null;
       const switchedCompany = action.payload?.company ?? null;
 
       state.switchError = null;
@@ -279,15 +290,17 @@ const companyContextSlice = createSlice({
     });
     builder.addCase(setActiveCompanyThunk.rejected, (state, action) => {
       state.switchingCompanyId = null;
-      state.switchError = action.payload || { message: "Company switch failed" };
+      state.switchError = action.payload || {
+        message: 'Company switch failed',
+      };
     });
 
     builder.addCase(updateMyCompanyThunk.pending, (state) => {
-      state.updateStatus = "loading";
+      state.updateStatus = 'loading';
       state.updateError = null;
     });
     builder.addCase(updateMyCompanyThunk.fulfilled, (state, action) => {
-      state.updateStatus = "succeeded";
+      state.updateStatus = 'succeeded';
       state.updateError = null;
 
       const updatedCompany = action.payload?.company ?? null;
@@ -315,16 +328,18 @@ const companyContextSlice = createSlice({
       }
     });
     builder.addCase(updateMyCompanyThunk.rejected, (state, action) => {
-      state.updateStatus = "failed";
-      state.updateError = action.payload || { message: "Company update failed" };
+      state.updateStatus = 'failed';
+      state.updateError = action.payload || {
+        message: 'Company update failed',
+      };
     });
 
     builder.addCase(removeMyCompanyImageThunk.pending, (state) => {
-      state.removeImageStatus = "loading";
+      state.removeImageStatus = 'loading';
       state.removeImageError = null;
     });
     builder.addCase(removeMyCompanyImageThunk.fulfilled, (state, action) => {
-      state.removeImageStatus = "succeeded";
+      state.removeImageStatus = 'succeeded';
       state.removeImageError = null;
 
       const updatedCompany = action.payload?.company ?? null;
@@ -365,9 +380,10 @@ const companyContextSlice = createSlice({
         : state.activeCompany;
     });
     builder.addCase(removeMyCompanyImageThunk.rejected, (state, action) => {
-      state.removeImageStatus = "failed";
-      state.removeImageError =
-        action.payload || { message: "Company image remove failed" };
+      state.removeImageStatus = 'failed';
+      state.removeImageError = action.payload || {
+        message: 'Company image remove failed',
+      };
     });
   },
 });

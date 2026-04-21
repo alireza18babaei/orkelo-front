@@ -1,4 +1,3 @@
-import React from "react";
 import { Col, Container, Row } from "reactstrap";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -9,9 +8,13 @@ import { loginThunk } from "../../../store/auth/authSlice";
 import { toastError } from "../../../utils/sweetAlert";
 
 const Login = () => {
-  const {loading, accessToken} = useSelector((s) => s.auth);
+  const { loading, accessToken, user } = useSelector((s) => s.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isLogin = location.pathname === "/login";
+  const isSignup = location.pathname === "/signup";
 
   const {
     register,
@@ -27,19 +30,19 @@ const Login = () => {
     mode: "onSubmit",
   });
 
-  if(accessToken) return <Navigate to={"/"} replace/>
+  if (accessToken && user) return <Navigate to="/" replace />;
 
   const onSubmit = async (data) => {
     try {
       const res = await dispatch(loginThunk(data)).unwrap();
+
       navigate("/", {
         replace: true,
-        state: {flash: res?.message || "Welcome"}
+        state: { flash: res?.message || "Welcome" },
       });
     } catch (e) {
-      const message =
-        e?.message || e?.data?.message || "Something went wrong";
-        toastError(message);
+      const message = e?.message || e?.data?.message || "Something went wrong";
+      toastError(message);
     }
   };
 
@@ -49,21 +52,29 @@ const Login = () => {
         <div className="main-container">
           <Container>
             <Row className="sign-in-content-bg">
-              <Col lg={6} className="image-contentbox d-none d-lg-block">
-                <div className="form-container">
-                  <div className="signup-content mt-4">
-                    <span>
-                      <img
-                        src="/assets/images/logo/1.png"
-                        alt="logo"
-                        className="img-fluid"
-                      />
-                    </span>
-                  </div>
+              <Col lg={6} className="image-contentbox position-relative">
+                <Link
+                  to="/login"
+                  className={`signin-btn text-decoration-none ${
+                    isLogin ? "bg-white text-muted" : "bg-orkelo text-white"
+                  }`}
+                >
+                  Sign In
+                </Link>
 
+                <Link
+                  to="/signup"
+                  className={`signup-btn text-decoration-none ${
+                    isSignup ? "bg-white text-muted" : "bg-orkelo text-white"
+                  }`}
+                >
+                  Sign Up
+                </Link>
+
+                <div className="form-container">
                   <div className="signup-bg-img">
                     <img
-                      src="/assets/images/login/04.png"
+                      src="/assets/images/pages/Orkelologo-white.png"
                       alt="login"
                       className="img-fluid"
                     />
@@ -77,12 +88,12 @@ const Login = () => {
                     <Row>
                       <Col xs={12}>
                         <div className="mb-5 text-center text-lg-start">
-                          <h2 className="text-primary f-w-600">
-                            Welcome To Orkelo!
+                          <h2 className="f-w-600 text-muted">
+                            Welcome back To{" "}
+                            <span className="color-orkelo fw-bold">Orkelo!</span>
                           </h2>
-                          <p>
-                            Sign in with your data that you entered during your
-                            registration
+                          <p className="fw-400">
+                            Log in to continue where you left off
                           </p>
                         </div>
                       </Col>
@@ -90,11 +101,11 @@ const Login = () => {
                       <Col xs={12}>
                         <div className="mb-3">
                           <label htmlFor="email" className="form-label">
-                            Email
+                            Email Address
                           </label>
                           <input
                             type="email"
-                            className="form-control"
+                            className="form-control b-r-14"
                             placeholder="Enter Your Email"
                             id="email"
                             autoComplete="email"
@@ -113,16 +124,9 @@ const Login = () => {
                           <label htmlFor="password" className="form-label">
                             Password
                           </label>
-                          <Link
-                            to="/auth/password-reset"
-                            className="link-primary float-end"
-                          >
-                            Forgot Password ?
-                          </Link>
-
                           <input
                             type="password"
-                            className="form-control"
+                            className="form-control b-r-14"
                             placeholder="Enter Your Password"
                             id="password"
                             autoComplete="current-password"
@@ -150,6 +154,13 @@ const Login = () => {
                           >
                             Remember me
                           </label>
+
+                          <Link
+                            to="/auth/password-reset"
+                            className="color-orkelo float-end"
+                          >
+                            Forgot Password ?
+                          </Link>
                         </div>
                       </Col>
 
@@ -157,7 +168,7 @@ const Login = () => {
                         <div className="mb-3">
                           <button
                             type="submit"
-                            className="btn btn-primary w-100"
+                            className="btn bg-orkelo text-white w-100 py-md-3 b-r-14"
                             disabled={loading}
                           >
                             {loading ? (
@@ -177,7 +188,7 @@ const Login = () => {
                           Don&apos;t Have Your Account yet?{" "}
                           <Link
                             to="/signup"
-                            className="link-primary text-decoration-underline"
+                            className="color-orkelo text-decoration"
                           >
                             Sign up
                           </Link>

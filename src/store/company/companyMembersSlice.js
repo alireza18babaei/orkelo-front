@@ -10,6 +10,20 @@ const normalizeMembersPayload = (payload) => {
   return [];
 };
 
+const normalizeRolesPayload = (payload) => {
+  const root = payload?.data ?? payload ?? {};
+  const data = root?.data ?? root;
+  if (Array.isArray(data?.roles)) return data.roles;
+  if (Array.isArray(data)) return data;
+  return [];
+};
+
+const normalizeRoleUpdatePayload = (payload) => {
+  const root = payload?.data ?? payload ?? {};
+  const data = root?.data ?? root;
+  return data && typeof data === "object" ? data : null;
+};
+
 const getUserIdFromMember = (member) =>
   String(
       member?.id ??
@@ -37,7 +51,39 @@ export const addCompanyMemberThunk = createAsyncThunk(
       const data = res?.data?.data ?? {};
       const added = data?.user ?? null;
 
-      return added;
+      return added
+        ? {
+            ...added,
+            role: data?.membership?.role ?? added?.role,
+            status: data?.membership?.status ?? added?.status,
+          }
+        : null;
+    } catch (err) {
+      return rejectWithValue(getErrorMessage(err));
+    }
+  },
+);
+
+export const getCompanyRolesThunk = createAsyncThunk(
+  "companyMembers/getRoles",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get("/companies/my/roles");
+      return normalizeRolesPayload(res?.data);
+    } catch (err) {
+      return rejectWithValue(getErrorMessage(err));
+    }
+  },
+);
+
+export const updateCompanyMemberRoleThunk = createAsyncThunk(
+  "companyMembers/updateRole",
+  async ({ userId, role }, { rejectWithValue }) => {
+    try {
+      const res = await api.patch(`/companies/my/roles/users/${userId}`, {
+        role,
+      });
+      return normalizeRoleUpdatePayload(res?.data);
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
     }
@@ -62,6 +108,11 @@ const initialState = {
   error: null,
   addLoading: false,
   addError: null,
+  roles: [],
+  rolesStatus: "idle",
+  rolesError: null,
+  roleUpdatingByUserId: {},
+  roleUpdateError: null,
   removingByUserId: {},
   removeError: null,
 };
@@ -116,6 +167,56 @@ const companyMembersSlice = createSlice({
     builder.addCase(addCompanyMemberThunk.rejected, (state, action) => {
       state.addLoading = false;
       state.addError = action.payload || { message: "Somthing went wrong" };
+    });
+
+    builder.addCase(getCompanyRolesThunk.pending, (state) => {
+      state.rolesStatus = "loading";
+      state.rolesError = null;
+    });
+    builder.addCase(getCompanyRolesThunk.fulfilled, (state, action) => {
+      state.rolesStatus = "succeeded";
+      state.rolesError = null;
+      state.roles = Array.isArray(action.payload) ? action.payload : [];
+    });
+    builder.addCase(getCompanyRolesThunk.rejected, (state, action) => {
+      state.rolesStatus = "failed";
+      state.rolesError = action.payload || { message: "Somthing went wrong" };
+      state.roles = [];
+    });
+
+    builder.addCase(updateCompanyMemberRoleThunk.pending, (state, action) => {
+      const userId = String(action.meta?.arg?.userId ?? "");
+      if (!userId) return;
+      state.roleUpdateError = null;
+      state.roleUpdatingByUserId[userId] = true;
+    });
+    builder.addCase(updateCompanyMemberRoleThunk.fulfilled, (state, action) => {
+      const updated = action.payload || {};
+      const userId = String(updated?.id ?? action.meta?.arg?.userId ?? "");
+      if (!userId) return;
+
+      delete state.roleUpdatingByUserId[userId];
+      state.roleUpdateError = null;
+      state.items = (state.items || []).map((member) => {
+        if (getUserIdFromMember(member) !== userId) return member;
+        return {
+          ...member,
+          ...updated,
+          membership:
+            member?.membership && typeof member.membership === "object"
+              ? {
+                  ...member.membership,
+                  role: updated?.role ?? member.membership.role,
+                  status: updated?.status ?? member.membership.status,
+                }
+              : member?.membership,
+        };
+      });
+    });
+    builder.addCase(updateCompanyMemberRoleThunk.rejected, (state, action) => {
+      const userId = String(action.meta?.arg?.userId ?? "");
+      if (userId) delete state.roleUpdatingByUserId[userId];
+      state.roleUpdateError = action.payload || { message: "Somthing went wrong" };
     });
 
     builder.addCase(deleteCompanyMemberThunk.pending, (state, action) => {

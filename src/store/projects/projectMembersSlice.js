@@ -22,6 +22,22 @@ const getMemberRouteId = (member) =>
       "",
   );
 
+const normalizeRoleAssignmentPayload = (payload) => {
+  const root = payload?.data ?? payload ?? {};
+  const data = root?.data ?? root;
+  const user = data?.user && typeof data.user === "object" ? data.user : {};
+
+  return {
+    id: data?.user_id ?? user?.id ?? null,
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+    avatar: user?.avatar ?? null,
+    project_member_id: data?.project_member_id ?? null,
+    project_role: data?.role ?? "",
+    membership_status: data?.status ?? "",
+  };
+};
+
 export const getProjectMembersThunk = createAsyncThunk(
   "projectMembers/getByProject",
   async (projectId, { rejectWithValue }) => {
@@ -72,6 +88,26 @@ export const deleteProjectMemberThunk = createAsyncThunk(
   },
 );
 
+export const updateProjectMemberRoleThunk = createAsyncThunk(
+  "projectMembers/updateRole",
+  async ({ projectId, memberId, role }, { rejectWithValue }) => {
+    try {
+      const res = await api.patch(
+        `/projects/${projectId}/members/${memberId}/role`,
+        { role },
+      );
+
+      return {
+        projectId,
+        memberId: String(memberId),
+        member: normalizeRoleAssignmentPayload(res?.data),
+      };
+    } catch (err) {
+      return rejectWithValue(getErrorMessage(err));
+    }
+  },
+);
+
 const initialState = {
   items: [],
   projectId: null,
@@ -81,6 +117,8 @@ const initialState = {
   addError: null,
   removingByMemberId: {},
   removeError: null,
+  roleUpdatingByMemberId: {},
+  roleUpdateError: null,
 };
 
 const projectMembersSlice = createSlice({
@@ -151,6 +189,44 @@ const projectMembersSlice = createSlice({
       const memberId = String(action.meta?.arg?.memberId ?? "");
       if (memberId) delete state.removingByMemberId[memberId];
       state.removeError = action.payload || { message: "Somthing went wrong" };
+    });
+
+    builder.addCase(updateProjectMemberRoleThunk.pending, (state, action) => {
+      const memberId = String(action.meta?.arg?.memberId ?? "");
+      if (!memberId) return;
+      state.roleUpdateError = null;
+      state.roleUpdatingByMemberId[memberId] = true;
+    });
+    builder.addCase(updateProjectMemberRoleThunk.fulfilled, (state, action) => {
+      const memberId = String(action.payload?.memberId ?? "");
+      if (memberId) delete state.roleUpdatingByMemberId[memberId];
+      state.roleUpdateError = null;
+      state.projectId = action.payload?.projectId ?? state.projectId;
+
+      const updated = action.payload?.member || {};
+      const updatedId = String(updated?.id ?? memberId);
+      state.items = (state.items || []).map((member) => {
+        const routeId = getMemberRouteId(member);
+        const key = getMemberKey(member);
+        if (routeId !== updatedId && key !== updatedId) return member;
+
+        return {
+          ...member,
+          ...updated,
+          id: member?.id ?? updated?.id,
+          name: updated?.name || member?.name,
+          email: updated?.email || member?.email,
+          avatar: updated?.avatar ?? member?.avatar,
+          project_role: updated?.project_role || member?.project_role,
+          membership_status:
+            updated?.membership_status || member?.membership_status,
+        };
+      });
+    });
+    builder.addCase(updateProjectMemberRoleThunk.rejected, (state, action) => {
+      const memberId = String(action.meta?.arg?.memberId ?? "");
+      if (memberId) delete state.roleUpdatingByMemberId[memberId];
+      state.roleUpdateError = action.payload || { message: "Somthing went wrong" };
     });
   },
 });

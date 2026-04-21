@@ -1,5 +1,5 @@
-import React from 'react';
-import {  Row, Col, Card, CardHeader, CardBody } from 'reactstrap';
+import React, { useState } from 'react';
+import { Row, Col, Card, CardHeader, CardBody, Button } from 'reactstrap';
 import { FilePond, registerPlugin } from 'react-filepond';
 import 'filepond/dist/filepond.min.css';
 import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
@@ -10,46 +10,52 @@ import FilePondPluginFileEncode from 'filepond-plugin-file-encode';
 import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
 import FilePondPluginImageExifOrientation from 'filepond-plugin-image-exif-orientation';
 
-const LightFileupload = () => {
-    registerPlugin(
-        FilePondPluginFileValidateType,
-        FilePondPluginImagePreview,
-        FilePondPluginFileEncode,
-        FilePondPluginFileValidateSize,
-        FilePondPluginImageExifOrientation
-    );
+registerPlugin(
+  FilePondPluginFileValidateType,
+  FilePondPluginImagePreview,
+  FilePondPluginFileEncode,
+  FilePondPluginFileValidateSize,
+  FilePondPluginImageExifOrientation,
+);
 
-    const lightUploaders = [
-        { id: 'light1', className: 'filepondlight1 file-light-primary' },
-        { id: 'light2', className: 'filepondlight2 file-light-secondary' },
-        { id: 'light3', className: 'filepondlight3 file-light-success' },
-        { id: 'light4', className: 'filepondlight4 file-light-danger' }
-    ];
+const LightFileupload = ({ onUpload, uploading = false }) => {
+  const [files, setFiles] = useState([]);
 
-    return (
-        <>
-            <Card>
-                <CardHeader>
-                    <h5>Light Style</h5>
-                </CardHeader>
-                <CardBody>
-                    <Row className="file-uploader-box">
-                        {lightUploaders.map((uploader) => (
-                            <Col key={uploader.id} sm="6" md="3" xl="3">
-                                <FilePond
-                                    allowMultiple={true}
-                                    name="files"
-                                    className={`filelight ${uploader.className}`}
-                                    data-allow-reorder="true"
-                                    labelIdle={`<i className="fa-solid fa-cloud-upload fa-fw f-s-25"></i> <div className="filepond--label-action text-decoration-none">Upload Your Files</div>`}
-                                />
-                            </Col>
-                        ))}
-                    </Row>
-                </CardBody>
-            </Card>
-        </>
-    );
+  const handleProcess = async () => {
+    const selectedFile = files?.[0]?.file;
+    if (!selectedFile || !onUpload) return;
+
+    await onUpload(selectedFile);
+    setFiles([]);
+  };
+
+  return (
+    <>
+      <Card>
+        <CardBody>
+          <Row className='file-uploader-box'>
+              <FilePond
+                files={files}
+                onupdatefiles={setFiles}
+                allowMultiple={false}
+                name='files'
+                className={'filelight filepondlight1 file-light-primary w-100'}
+                data-allow-reorder='true'
+                labelIdle={`<i className="fa-solid fa-cloud-upload fa-fw f-s-25"></i> <div className="filepond--label-action text-decoration-none">Upload Your Files</div>`}
+              />
+              <Button
+                color='primary'
+                className='w-100'
+                onClick={handleProcess}
+                disabled={uploading || !files.length}
+              >
+                {uploading ? 'Uploading...' : 'Upload'}
+              </Button>
+          </Row>
+        </CardBody>
+      </Card>
+    </>
+  );
 };
 
 export default LightFileupload;

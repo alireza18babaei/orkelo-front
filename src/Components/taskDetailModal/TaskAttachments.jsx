@@ -11,7 +11,8 @@ import {
   Spinner,
 } from "reactstrap";
 import api from "../../api/axios";
-import { alertConfirm, alertSuccess, toastError } from "../../utils/sweetAlert";
+import { getBackendOrigin, resolvePublicMediaUrl } from "../../utils/mediaUrl";
+import { alertConfirm, toastError, toastSuccess } from "../../utils/sweetAlert";
 import { updateTaskInColumn } from "../../store/projects/projectColumnsSlice";
 
 const toPublicAsset = (relPath) => {
@@ -133,19 +134,13 @@ const resolveAttachmentIcon = (a) => {
   return "assets/images/icons/file.png";
 };
 
-const getBackendOrigin = () => {
-  const apiBase = import.meta.env.VITE_API_BASE_URL;
-  try {
-    return new URL(String(apiBase)).origin;
-  } catch {
-    return "";
-  }
-};
-
 const resolveAttachmentHref = (url) => {
   const raw = String(url || "").trim();
   if (!raw) return "";
   if (raw.startsWith("blob:") || raw.startsWith("data:")) return raw;
+
+  const publicMediaUrl = resolvePublicMediaUrl(raw);
+  if (publicMediaUrl) return publicMediaUrl;
 
   const backendOrigin = getBackendOrigin();
   if (!backendOrigin) return raw;
@@ -188,6 +183,7 @@ const useAttachmentImageSrc = ({ attachment, href }) => {
     if (!isImg) return false;
     const h = String(href || "");
     if (!h) return false;
+    if (h.includes("/api/v1/media/public/")) return false;
     if (h.includes("/storage/")) return false;
     return h.includes("/api/");
   }, [isImg, href]);
@@ -272,6 +268,16 @@ const triggerBrowserDownload = ({ blob, filename }) => {
   URL.revokeObjectURL(url);
 };
 
+const isFileDragEvent = (event) => {
+  const types = Array.from(event?.dataTransfer?.types || []);
+  return types.includes("Files");
+};
+
+const getDataTransferFiles = (dataTransfer) =>
+  Array.from(dataTransfer?.files || []).filter(
+    (file) => file && (typeof File === "undefined" || file instanceof File),
+  );
+
 export default function TaskAttachments({
   projectId,
   taskId,
@@ -290,7 +296,9 @@ export default function TaskAttachments({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState(null);
   const [previewDownloading, setPreviewDownloading] = useState(false);
+  const [attachmentDragActive, setAttachmentDragActive] = useState(false);
   const seededRef = useRef(false);
+  const attachmentDragDepthRef = useRef(0);
 
   const safeFormatDateTime = (value) => {
     if (typeof formatDateTime === "function") return formatDateTime(value);
@@ -428,7 +436,7 @@ export default function TaskAttachments({
       }
       if (!res && lastErr) throw lastErr;
 
-      alertSuccess();
+      toastSuccess("File attached");
       await fetchAttachments();
       onChanged?.();
     } catch (err) {
@@ -442,6 +450,65 @@ export default function TaskAttachments({
       setAttachmentUploading(false);
     }
   }, [fetchAttachments, onChanged, projectId, taskId]);
+
+  const handleAttachmentDragEnter = useCallback((event) => {
+    if (!isFileDragEvent(event)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = attachmentUploading ? "none" : "copy";
+    }
+
+    attachmentDragDepthRef.current += 1;
+    setAttachmentDragActive(true);
+  }, [attachmentUploading]);
+
+  const handleAttachmentDragOver = useCallback((event) => {
+    if (!isFileDragEvent(event)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = attachmentUploading ? "none" : "copy";
+    }
+  }, [attachmentUploading]);
+
+  const handleAttachmentDragLeave = useCallback((event) => {
+    if (!isFileDragEvent(event)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    attachmentDragDepthRef.current = Math.max(
+      attachmentDragDepthRef.current - 1,
+      0,
+    );
+
+    if (attachmentDragDepthRef.current === 0) {
+      setAttachmentDragActive(false);
+    }
+  }, []);
+
+  const handleAttachmentDrop = useCallback(async (event) => {
+    if (!isFileDragEvent(event)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    attachmentDragDepthRef.current = 0;
+    setAttachmentDragActive(false);
+
+    if (attachmentUploading) return;
+
+    const files = getDataTransferFiles(event.dataTransfer);
+    const file = files[0] || null;
+    if (!file) return;
+
+    await uploadAttachment(file);
+  }, [attachmentUploading, uploadAttachment]);
 
   useEffect(() => {
     if (!projectId || !taskId) return undefined;
@@ -488,7 +555,7 @@ export default function TaskAttachments({
       await api.delete(
         `/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}`,
       );
-      alertSuccess();
+      toastSuccess("File deleted");
       setMenuOpenId(null);
       await fetchAttachments();
       onChanged?.();
@@ -508,22 +575,44 @@ export default function TaskAttachments({
     <div className="mb-3">
       <label
         htmlFor="task-attachment-file"
-        className={`btn px-2 b-r-20 d-flex align-items-center gap-2 text-primary ${
-          attachmentUploading ? "opacity-50 pe-none" : ""
+        className={`task-attachment-dropzone ${
+          attachmentDragActive ? "is-drag-over" : ""
+        } ${
+          attachmentUploading ? "is-uploading" : ""
         }`}
+        onDragEnter={handleAttachmentDragEnter}
+        onDragOver={handleAttachmentDragOver}
+        onDragLeave={handleAttachmentDragLeave}
+        onDrop={handleAttachmentDrop}
       >
-        <i className="fa-solid fa-plus fa-fw"></i>
-        <span>{attachmentUploading ? "Uploading..." : "Add attachment"}</span>
+        <span className="task-attachment-dropzone__icon">
+          {attachmentUploading ? (
+            <Spinner size="sm" color="primary" />
+          ) : (
+            <i className="fa-solid fa-cloud-arrow-up fa-fw"></i>
+          )}
+        </span>
+        <span className="task-attachment-dropzone__text">
+          <span className="task-attachment-dropzone__title">
+            {attachmentUploading ? "Uploading..." : "Add attachment"}
+          </span>
+          <span className="task-attachment-dropzone__hint">
+            Drag a file, choos
+          </span>
+        </span>
         <input
           type="file"
           name="file"
           id="task-attachment-file"
           className="d-none"
           onChange={async (e) => {
-            const file = e.currentTarget.files?.[0] || null;
+            const input = e.currentTarget;
+            const file = input.files?.[0] || null;
             if (!file) return;
             await uploadAttachment(file);
-            e.currentTarget.value = "";
+            if (input) {
+              input.value = "";
+            }
           }}
           disabled={attachmentUploading}
         />

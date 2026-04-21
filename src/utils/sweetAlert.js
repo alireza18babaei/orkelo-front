@@ -13,7 +13,6 @@ const baseToast = {
   position: "top-end",
   showConfirmButton: false,
   timerProgressBar: true,
-  heightAuto: false,
   customClass: {
     container: "swal-toast-container",
     popup: "swal-toast-popup",
@@ -63,6 +62,56 @@ export const alertConfirm = ({
     confirmButtonText: confirmText,
     cancelButtonText: cancelText,
     reverseButtons: true,
+  });
+
+export const alertTextConfirm = ({
+  title = "Are you sure?",
+  text = "This action cannot be undone.",
+  confirmText = "Yes",
+  cancelText = "Cancel",
+  inputLabel = "",
+  inputPlaceholder = "",
+  expectedValue = "",
+  requiredMessage = "This field is required.",
+  mismatchMessage = "Entered value does not match.",
+} = {}) =>
+  Swal.fire({
+    ...baseDialog,
+    icon: "warning",
+    title,
+    text,
+    input: "text",
+    inputLabel,
+    inputPlaceholder,
+    inputAttributes: {
+      autocapitalize: "off",
+      autocomplete: "off",
+      autocorrect: "off",
+      spellcheck: "false",
+    },
+    showCancelButton: true,
+    confirmButtonText: confirmText,
+    cancelButtonText: cancelText,
+    reverseButtons: true,
+    preConfirm: (value) => {
+      const normalizedValue = String(value ?? "").trim();
+      const normalizedExpectedValue = String(expectedValue ?? "").trim();
+
+      if (!normalizedValue) {
+        Swal.showValidationMessage(requiredMessage);
+        return false;
+      }
+
+      if (
+        normalizedExpectedValue &&
+        normalizedValue !== normalizedExpectedValue
+      ) {
+        Swal.showValidationMessage(mismatchMessage);
+        return false;
+      }
+
+      return normalizedValue;
+    },
   });
 
 // Toasts

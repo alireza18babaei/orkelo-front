@@ -1086,7 +1086,7 @@
     }
   }
 
-  // setting security 
+  // setting security
   .security-box-card {
     .security-discription {
       p {
@@ -1468,7 +1468,7 @@
       }
 
       .toggle-semi-nav {
-        display: block;
+        display: inline-flex;
         background-color: transparent !important;
         padding: 0;
       }
@@ -1869,7 +1869,7 @@
         }
       }
     }
-    
+
   }
   header{
     &.header-main {
@@ -2260,7 +2260,7 @@
     }
   }
 
- 
+
 
   .step-status {
     .nav-link {

@@ -1,5 +1,5 @@
-import React from "react";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
+import { getTextDirectionProps } from "../../utils/textDirection";
 
 const CHECKLIST_DROPPABLE_PREFIX = "checklist-parent:";
 
@@ -73,10 +73,24 @@ const ChecklistTree = ({
     const isItemBusy = checklistBusyId === item.id;
     const dragStyle = dragProvided?.draggableProps?.style || undefined;
     const draggableClass = dragSnapshot?.isDragging ? "shadow-sm bg-white" : "";
+    const resolvedItemIdentity = itemIdentity ?? getChecklistItemIdentity(item, index);
+    const checklistControlId =
+      depth === 0 ? `checklist-toggle-${resolvedItemIdentity}` : null;
+    const itemTextDirectionProps = getTextDirectionProps(item.text, {
+      resize: "none",
+      overflow: "hidden",
+      height: "auto",
+    });
+    const subInputValue = subInputById[item.id] || "";
+    const subInputDirectionProps = getTextDirectionProps(subInputValue, {
+      resize: "none",
+      overflow: "hidden",
+      height: "auto",
+    });
 
     return (
       <div
-        key={`checklist-item-${itemIdentity ?? getChecklistItemIdentity(item, index)}`}
+        key={`checklist-item-${resolvedItemIdentity}`}
         ref={dragProvided?.innerRef}
         {...(dragProvided?.draggableProps || {})}
         {...(dragProvided?.dragHandleProps || {})}
@@ -104,15 +118,29 @@ const ChecklistTree = ({
           ) : null}
 
           {depth === 0 ? (
-            <input
-              type="checkbox"
-              className="form-check-input mt-1"
-              checked={!!item.is_completed}
-              onChange={(e) =>
-                onToggleChecklistItem?.(item, e.target.checked)
-              }
-              disabled={isItemBusy}
-            />
+            <div
+              className="checklist-item-checkbox-wrap mt-1"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <input
+                id={checklistControlId}
+                type="checkbox"
+                className="checklist-item-checkbox-input"
+                checked={!!item.is_completed}
+                onChange={(e) =>
+                  onToggleChecklistItem?.(item, e.target.checked)
+                }
+                aria-label="Toggle checklist item completion"
+                disabled={isItemBusy}
+              />
+              <label
+                htmlFor={checklistControlId}
+                className="checklist-item-checkbox"
+              >
+                <i className="ti ti-check f-s-17 fw-bolder" aria-hidden="true" />
+              </label>
+            </div>
           ) : null}
 
           <div className="flex-grow-1">
@@ -139,7 +167,7 @@ const ChecklistTree = ({
                 e.currentTarget.style.height = "auto";
                 e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
               }}
-              style={{ resize: "none", overflow: "hidden", height: "auto" }}
+              {...itemTextDirectionProps}
               disabled={isItemBusy}
             />
           </div>
@@ -184,7 +212,7 @@ const ChecklistTree = ({
                   className="form-control autogrow-textarea"
                   rows="1"
                   placeholder="Write a sub item..."
-                  value={subInputById[item.id] || ""}
+                  value={subInputValue}
                   onChange={(e) =>
                     setSubInputById((prev) => ({
                       ...prev,
@@ -239,7 +267,7 @@ const ChecklistTree = ({
                     e.currentTarget.style.height = "auto";
                     e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
                   }}
-                  style={{ resize: "none", overflow: "hidden", height: "auto" }}
+                  {...subInputDirectionProps}
                   autoFocus
                   disabled={isItemBusy}
                 />
