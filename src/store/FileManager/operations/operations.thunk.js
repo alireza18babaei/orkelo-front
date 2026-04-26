@@ -9,9 +9,9 @@ import {
 
 export const getFinancialOperations = createAsyncThunk(
   'financialOperations/getAll',
-  async ({ page = 1, title = '' } = {}, { rejectWithValue }) => {
+  async ({ page = 1, title = '', perPage = 10 } = {}, { rejectWithValue }) => {
     try {
-      const params = { page };
+      const params = { page, per_page: perPage };
       const normalizedTitle = String(title ?? '').trim();
 
       if (normalizedTitle) {
@@ -53,6 +53,14 @@ export const createFinancialOperation = createAsyncThunk(
 
       if (body.type === 'deposit') {
         const depositSource = String(payload?.depositSource ?? '').trim();
+        const counterpartyId = Number(payload?.counterpartyId);
+
+        // Counterparty is optional, so an empty select is sent as null.
+        body.counterparty_id =
+          Number.isInteger(counterpartyId) && counterpartyId > 0
+            ? counterpartyId
+            : null;
+
         if (depositSource) {
           body.deposit_source = depositSource;
         }
@@ -84,6 +92,13 @@ export const updateFinancialOperation = createAsyncThunk(
       };
 
       if (body.type === 'deposit') {
+        const counterpartyId = Number(payload?.counterpartyId);
+
+        // Counterparty is optional, so an empty select is sent as null.
+        body.counterparty_id =
+          Number.isInteger(counterpartyId) && counterpartyId > 0
+            ? counterpartyId
+            : null;
         body.deposit_source =
           String(payload?.depositSource ?? '').trim() || null;
       }
@@ -96,6 +111,30 @@ export const updateFinancialOperation = createAsyncThunk(
       return {
         operation: normalizeFinancialOperation(res?.data?.data),
         message: res?.data?.message || 'Financial operation updated successfully.',
+      };
+    } catch (err) {
+      return rejectWithValue(getErrorMessage(err));
+    }
+  },
+);
+
+export const updateFinancialOperationStatus = createAsyncThunk(
+  'financialOperations/updateStatus',
+  async ({ operationId, status }, { rejectWithValue }) => {
+    try {
+      // Send only the status field because the endpoint is dedicated to review state.
+      const res = await api.patch(
+        `/file-management/operations/${operationId}/status`,
+        {
+          status: String(status ?? '').trim().toLowerCase(),
+        },
+      );
+
+      return {
+        operation: normalizeFinancialOperation(res?.data?.data),
+        message:
+          res?.data?.message ||
+          'Financial operation status updated successfully.',
       };
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));

@@ -24,6 +24,7 @@ import fileManagerProjectsReducer from "./FileManager/projects/project.slice.js"
 import projectReportsReducer from "./FileManager/Reports/projectReports.slice.js";
 import fileManagementAccessReducer from "./FileManager/access/access.slice.js";
 import financialOperationsReducer from "./FileManager/operations/operations.slice.js";
+import financialCounterpartiesReducer from "./FileManager/counterparties/counterparties.slice.js";
 
 export const store = configureStore({
   reducer: {
@@ -51,6 +52,7 @@ export const store = configureStore({
     fileManagerProjects: fileManagerProjectsReducer,
     projectReports: projectReportsReducer,
     fileManagementAccess: fileManagementAccessReducer,
-    financialOperations: financialOperationsReducer
+    financialOperations: financialOperationsReducer,
+    financialCounterparties: financialCounterpartiesReducer
   }
 })

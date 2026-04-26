@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   deleteProjectReport,
   downloadProjectReport,
+  getUserProjectReports,
   getUserReports,
 } from '../../../store/FileManager/Reports/projectReports.thunk';
 import { getReportFileIcon } from '../../../utils/reportFileIcon';
@@ -37,11 +38,23 @@ function UserReports() {
   const uploaderName =
     projectReports?.[0]?.uploaderName || location.state?.memberName || '';
 
+  const loadReports = (targetPage = page) => {
+    // Fetch project-scoped reports when the page has projectId.
+    // The legacy user-wide route is kept for /manage-projects/user/:userId.
+    if (projectId) {
+      return dispatch(getUserProjectReports({ projectId, userId, page: targetPage }));
+    }
+
+    return dispatch(getUserReports({ userId, page: targetPage }));
+  };
+
+
   useEffect(() => {
     if (userId) {
-      dispatch(getUserReports({ userId, page }));
+      loadReports(page);
     }
-  }, [dispatch, userId, page]);
+  }, [userId, projectId, page]);
+
 
   const handleGoBack = () => {
     if (window.history.length > 1) {
@@ -81,7 +94,7 @@ function UserReports() {
         if (nextPage !== page) {
           setPage(nextPage);
         } else {
-          dispatch(getUserReports({ userId, page: nextPage }));
+          loadReports(nextPage);
         }
       }
     } finally {

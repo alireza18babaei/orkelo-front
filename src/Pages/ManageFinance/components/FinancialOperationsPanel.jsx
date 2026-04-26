@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   Col,
+  Dropdown,
   Form,
   Modal,
   Row,
@@ -35,6 +36,8 @@ import {
   financialOperationDeletingFileIdsSelector,
   financialOperationFileUploadErrorSelector,
   financialOperationFileUploadStatusSelector,
+  financialOperationStatusUpdateErrorSelector,
+  financialOperationStatusUpdateStatusSelector,
   financialOperationsErrorSelector,
   financialOperationsLoadingSelector,
   financialOperationsMetaSelector,
@@ -48,12 +51,20 @@ import {
   getFinancialOperationDetail,
   getFinancialOperations,
   updateFinancialOperation,
+  updateFinancialOperationStatus,
   uploadFinancialOperationFile,
 } from '../../../store/FileManager/operations/operations.thunk';
 import {
   clearFinancialOperationDetail,
   resetFinancialOperationMutationState,
 } from '../../../store/FileManager/operations/operations.slice';
+import {
+  financialCounterpartiesLoadingSelector,
+  financialCounterpartiesSelector,
+} from '../../../store/FileManager/counterparties/counterparties.selector';
+import { getFinancialCounterparties } from '../../../store/FileManager/counterparties/counterparties.thunk';
+
+const OPERATIONS_PAGE_SIZE = 5;
 
 const getDefaultOperationDateTime = () => {
   const now = new Date();
@@ -83,6 +94,8 @@ const getOperationForm = (operation = null) => ({
   amount: String(operation?.amount ?? '').trim(),
   operatedAt: toDateTimeLocalValue(operation?.operatedAt),
   account: String(operation?.account ?? '').trim(),
+  counterpartyId:
+    operation?.counterpartyId == null ? '' : String(operation.counterpartyId),
   description: String(operation?.description ?? '').trim(),
   depositSource: String(operation?.depositSource ?? '').trim(),
 });
@@ -118,13 +131,40 @@ const formatBytes = (bytes) => {
 const getOperationTypeVariant = (type) =>
   String(type ?? '').trim().toLowerCase() === 'deposit' ? 'success' : 'warning';
 
-const getOperationStatusVariant = (status) => {
+// Keep status metadata in one place so labels, colors, and actions stay aligned.
+const FINANCIAL_OPERATION_STATUS_OPTIONS = [
+  {
+    value: 'pending',
+    label: 'Pending',
+    variant: 'warning',
+    iconClass: 'ph-duotone ph-clock',
+  },
+  {
+    value: 'approved',
+    label: 'Approved',
+    variant: 'success',
+    iconClass: 'ph-duotone ph-check-circle',
+  },
+  {
+    value: 'rejected',
+    label: 'Rejected',
+    variant: 'danger',
+    iconClass: 'ph-duotone ph-x-circle',
+  },
+];
+
+const getOperationStatusOption = (status) => {
   const normalized = String(status ?? '').trim().toLowerCase();
 
-  if (normalized === 'approved') return 'success';
-  if (normalized === 'rejected') return 'danger';
-  return 'secondary';
+  return (
+    FINANCIAL_OPERATION_STATUS_OPTIONS.find(
+      (option) => option.value === normalized,
+    ) || FINANCIAL_OPERATION_STATUS_OPTIONS[0]
+  );
 };
+
+const getOperationStatusVariant = (status) =>
+  getOperationStatusOption(status).variant;
 
 const parseFilenameFromContentDisposition = (headerValue) => {
   const raw = String(headerValue || '').trim();
@@ -208,6 +248,8 @@ function OperationFormFields({
   onChange,
   disabled,
   error,
+  counterparties = [],
+  counterpartiesLoading = false,
 }) {
   return (
     <Form className='manage-finance__create-form'>
@@ -278,16 +320,39 @@ function OperationFormFields({
       </Row>
 
       {form.type === 'deposit' ? (
-        <Form.Group>
-          <Form.Label>Deposit Source</Form.Label>
-          <Form.Control
-            type='text'
-            value={form.depositSource}
-            onChange={onChange('depositSource')}
-            placeholder='Card to card'
-            disabled={disabled}
-          />
-        </Form.Group>
+        <Row className='g-3'>
+          <Col md={6}>
+            <Form.Group>
+              <Form.Label>Counterparty</Form.Label>
+              <Form.Select
+                value={form.counterpartyId}
+                onChange={onChange('counterpartyId')}
+                disabled={disabled || counterpartiesLoading}
+              >
+                <option value=''>None</option>
+                {counterparties.map((counterparty) => (
+                  <option key={counterparty.id} value={counterparty.id}>
+                    {counterparty.fullName}
+                    {counterparty.bankName ? ` - ${counterparty.bankName}` : ''}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+
+          <Col md={6}>
+            <Form.Group>
+              <Form.Label>Deposit Source</Form.Label>
+              <Form.Control
+                type='text'
+                value={form.depositSource}
+                onChange={onChange('depositSource')}
+                placeholder='Card to card'
+                disabled={disabled}
+              />
+            </Form.Group>
+          </Col>
+        </Row>
       ) : null}
 
       <Form.Group>
@@ -314,6 +379,8 @@ function OperationFormFields({
 export default function FinancialOperationsPanel({ enabled = true }) {
   const dispatch = useDispatch();
 
+  const user = useSelector((state) => state.auth?.user ?? null);
+  const activeCompany = useSelector((state) => state.companyContext?.activeCompany);
   const operations = useSelector(financialOperationsSelector);
   const operationsLoading = useSelector(financialOperationsLoadingSelector);
   const operationsError = useSelector(financialOperationsErrorSelector);
@@ -338,6 +405,24 @@ export default function FinancialOperationsPanel({ enabled = true }) {
   const uploadError = useSelector(financialOperationFileUploadErrorSelector);
   const deletingFileIds = useSelector(financialOperationDeletingFileIdsSelector);
   const deleteError = useSelector(financialOperationDeleteErrorSelector);
+  const statusUpdateStatus = useSelector(
+    financialOperationStatusUpdateStatusSelector,
+  );
+  const statusUpdateError = useSelector(
+    financialOperationStatusUpdateErrorSelector,
+  );
+  const counterparties = useSelector(financialCounterpartiesSelector);
+  const counterpartiesLoading = useSelector(
+    financialCounterpartiesLoadingSelector,
+  );
+
+  const companyRole = String(
+    activeCompany?.membership?.role ?? user?.company_role ?? user?.user_type ?? '',
+  )
+    .trim()
+    .toLowerCase();
+  // The backend allows status changes only for the company owner.
+  const isCompanyOwner = companyRole === 'company_owner';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -359,9 +444,23 @@ export default function FinancialOperationsPanel({ enabled = true }) {
       getFinancialOperations({
         page,
         title: deferredSearchTerm,
+        perPage: OPERATIONS_PAGE_SIZE,
       }),
     );
   }, [deferredSearchTerm, dispatch, enabled, page]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    // The operation modals need all available counterparties as select options.
+    dispatch(
+      getFinancialCounterparties({
+        page: 1,
+        search: '',
+        perPage: 500,
+      }),
+    );
+  }, [dispatch, enabled]);
 
   useEffect(() => {
     if (!operations.length) {
@@ -432,7 +531,7 @@ export default function FinancialOperationsPanel({ enabled = true }) {
 
   const currentPage = Number(operationsMeta?.current_page) || 1;
   const lastPage = Number(operationsMeta?.last_page) || 1;
-  const perPage = Number(operationsMeta?.per_page) || 10;
+  const perPage = Number(operationsMeta?.per_page) || OPERATIONS_PAGE_SIZE;
 
   const paginationSummary = useMemo(() => {
     const total = Number(operationsMeta?.total ?? operationsTotal ?? 0);
@@ -440,7 +539,7 @@ export default function FinancialOperationsPanel({ enabled = true }) {
     const end = total ? Math.min(currentPage * perPage, total) : 0;
 
     return total
-      ? `Showing ${start} to ${end} of ${total} financial operations`
+      ? `${start}-${end} of ${total} operations`
       : 'No financial operations found.';
   }, [currentPage, operationsMeta?.total, operationsTotal, perPage]);
 
@@ -449,6 +548,7 @@ export default function FinancialOperationsPanel({ enabled = true }) {
       getFinancialOperations({
         page,
         title: deferredSearchTerm,
+        perPage: OPERATIONS_PAGE_SIZE,
       }),
     );
 
@@ -504,7 +604,7 @@ export default function FinancialOperationsPanel({ enabled = true }) {
       ...current,
       [field]: nextValue,
       ...(field === 'type' && nextValue === 'withdrawal'
-        ? { depositSource: '' }
+        ? { counterpartyId: '', depositSource: '' }
         : {}),
     }));
   };
@@ -539,6 +639,7 @@ export default function FinancialOperationsPanel({ enabled = true }) {
         getFinancialOperations({
           page: 1,
           title: '',
+          perPage: OPERATIONS_PAGE_SIZE,
         }),
       );
 
@@ -587,6 +688,7 @@ export default function FinancialOperationsPanel({ enabled = true }) {
         getFinancialOperations({
           page,
           title: deferredSearchTerm,
+          perPage: OPERATIONS_PAGE_SIZE,
         }),
       );
 
@@ -639,6 +741,7 @@ export default function FinancialOperationsPanel({ enabled = true }) {
         getFinancialOperations({
           page,
           title: deferredSearchTerm,
+          perPage: OPERATIONS_PAGE_SIZE,
         }),
       );
 
@@ -795,6 +898,40 @@ export default function FinancialOperationsPanel({ enabled = true }) {
     }
   };
 
+  const handleChangeOperationStatus = async (nextStatus) => {
+    const normalizedStatus = String(nextStatus ?? '').trim().toLowerCase();
+
+    if (!currentOperation?.id || !normalizedStatus) return;
+
+    // Avoid sending a PATCH request when the selected status is already active.
+    if (
+      normalizedStatus ===
+      String(currentOperation?.status ?? '').trim().toLowerCase()
+    ) {
+      return;
+    }
+
+    const resultAction = await dispatch(
+      updateFinancialOperationStatus({
+        operationId: currentOperation.id,
+        status: normalizedStatus,
+      }),
+    );
+
+    if (updateFinancialOperationStatus.fulfilled.match(resultAction)) {
+      toastSuccess(
+        resultAction.payload?.message ||
+          'Financial operation status updated successfully.',
+      );
+      return;
+    }
+
+    toastError(
+      resultAction.payload?.message || 'Failed to update operation status.',
+    );
+  };
+
+  const currentStatusOption = getOperationStatusOption(currentOperation?.status);
   const files = Array.isArray(currentOperation?.files) ? currentOperation.files : [];
 
   return (
@@ -898,6 +1035,17 @@ export default function FinancialOperationsPanel({ enabled = true }) {
                   </Button>
                 </div>
               )}
+
+              {!operationsLoading && !operationsError && operations.length > 0 ? (
+                <AppPagination
+                  className='manage-finance__operation-list-pagination'
+                  currentPage={currentPage}
+                  lastPage={lastPage}
+                  summary={paginationSummary}
+                  disabled={operationsLoading}
+                  onPageChange={(nextPage) => setPage(nextPage)}
+                />
+              ) : null}
             </div>
           </Col>
 
@@ -934,6 +1082,56 @@ export default function FinancialOperationsPanel({ enabled = true }) {
                     </div>
 
                     <div className='manage-finance__operation-detail-actions'>
+                      {isCompanyOwner ? (
+                        <Dropdown
+                          align='end'
+                          className='manage-finance__status-dropdown'
+                        >
+                          <Dropdown.Toggle
+                            size='sm'
+                            variant={`light-${currentStatusOption.variant}`}
+                            disabled={statusUpdateStatus === 'loading'}
+                          >
+                            <i className={currentStatusOption.iconClass}></i>
+                            {statusUpdateStatus === 'loading'
+                              ? 'Updating...'
+                              : `Status: ${currentStatusOption.label}`}
+                          </Dropdown.Toggle>
+
+                          <Dropdown.Menu className='manage-finance__status-menu'>
+                            {FINANCIAL_OPERATION_STATUS_OPTIONS.map((option) => {
+                              const isCurrent =
+                                option.value === currentStatusOption.value;
+
+                              return (
+                                <Dropdown.Item
+                                  as='button'
+                                  key={option.value}
+                                  className={`manage-finance__status-item ${
+                                    isCurrent ? 'is-current' : ''
+                                  }`}
+                                  disabled={
+                                    isCurrent || statusUpdateStatus === 'loading'
+                                  }
+                                  onClick={() =>
+                                    handleChangeOperationStatus(option.value)
+                                  }
+                                >
+                                  <span className='manage-finance__status-item-copy'>
+                                    <i className={option.iconClass}></i>
+                                    {option.label}
+                                  </span>
+
+                                  {isCurrent ? (
+                                    <Badge bg={option.variant}>Current</Badge>
+                                  ) : null}
+                                </Dropdown.Item>
+                              );
+                            })}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      ) : null}
+
                       <Button
                         variant='outline-secondary'
                         size='sm'
@@ -958,6 +1156,12 @@ export default function FinancialOperationsPanel({ enabled = true }) {
                       </div>
                     </div>
                   </div>
+
+                  {statusUpdateError?.message ? (
+                    <Alert variant='danger' className='mb-0'>
+                      {statusUpdateError.message}
+                    </Alert>
+                  ) : null}
 
                   <div className='manage-finance__operation-stats'>
                     <div className='manage-finance__operation-stat'>
@@ -1160,16 +1364,6 @@ export default function FinancialOperationsPanel({ enabled = true }) {
         </Row>
       </Card.Body>
 
-      <Card.Footer className='bg-transparent border-0 pt-0'>
-        <AppPagination
-          currentPage={currentPage}
-          lastPage={lastPage}
-          summary={paginationSummary}
-          disabled={operationsLoading}
-          onPageChange={(nextPage) => setPage(nextPage)}
-        />
-      </Card.Footer>
-
       <Modal show={createModalOpen} onHide={handleCloseCreateModal} centered>
         <Modal.Header closeButton={createStatus !== 'loading'}>
           <Modal.Title>Create Operation</Modal.Title>
@@ -1180,6 +1374,8 @@ export default function FinancialOperationsPanel({ enabled = true }) {
             onChange={handleCreateInputChange}
             disabled={createStatus === 'loading'}
             error={createError}
+            counterparties={counterparties}
+            counterpartiesLoading={counterpartiesLoading}
           />
         </Modal.Body>
         <Modal.Footer>
@@ -1206,6 +1402,8 @@ export default function FinancialOperationsPanel({ enabled = true }) {
             onChange={handleEditInputChange}
             disabled={updateStatus === 'loading'}
             error={updateError}
+            counterparties={counterparties}
+            counterpartiesLoading={counterpartiesLoading}
           />
         </Modal.Body>
         <Modal.Footer>

@@ -221,6 +221,63 @@
   gap: 0.85rem;
 }
 
+.manage-finance__operation-list-pagination {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(var(--dark), 0.08);
+}
+
+.manage-finance__operation-list-pagination p {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.86rem;
+}
+
+.manage-finance__operation-list-pagination .pagination {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.manage-finance__operation-list-pagination .page-item {
+  margin: 0;
+}
+
+.manage-finance__operation-list-pagination .page-link {
+  min-width: 2.35rem;
+  height: 2.35rem;
+  padding: 0 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem !important;
+  border: 1px solid rgba(var(--primary), 0.16);
+  color: rgb(var(--primary));
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.manage-finance__operation-list-pagination .page-item.active .page-link {
+  color: #fff;
+  background: rgb(var(--primary));
+  border-color: rgb(var(--primary));
+}
+
+.manage-finance__operation-list-pagination .page-item.disabled .page-link {
+  color: var(--bs-secondary-color);
+  background: rgba(var(--light), 0.75);
+  border-color: rgba(var(--dark), 0.08);
+}
+
 .manage-finance__operation-item {
   width: 100%;
   text-align: left;
@@ -475,6 +532,113 @@
 
   .manage-finance__operations-search {
     min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Finance tabs reuse the template tab classes and keep the layout responsive. */
+.manage-finance__tabs-card .card-body {
+  padding: 0.75rem;
+}
+
+.manage-finance__tabs {
+  gap: 0.5rem;
+  border-bottom: 0;
+}
+
+.manage-finance__tabs .nav-item {
+  flex: 1 1 12rem;
+}
+
+.manage-finance__tabs .nav-link {
+  width: 100%;
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+}
+
+.manage-finance__tabs .nav-link i {
+  font-size: 1.15rem;
+}
+
+.manage-finance__tabs .nav-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Owner-only financial operation status dropdown. */
+.manage-finance__status-dropdown .dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.manage-finance__status-menu {
+  min-width: 13rem;
+}
+
+.manage-finance__status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.manage-finance__status-item-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.manage-finance__status-item.is-current {
+  font-weight: 600;
+}
+
+/* Counterparties tab uses the template card/table style with local spacing. */
+.manage-finance__counterparty-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.manage-finance__counterparty-table {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(var(--dark), 0.08);
+}
+
+.manage-finance__counterparty-table .table th {
+  background: rgba(var(--light), 0.7);
+  color: var(--bs-secondary-color);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.manage-finance__counterparty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 575.98px) {
+  .manage-finance__tabs .nav-item {
+    flex-basis: 100%;
+  }
+
+  .manage-finance__counterparty-toolbar,
+  .manage-finance__counterparty-actions {
+    justify-content: flex-start;
+  }
+
+  .manage-finance__counterparty-toolbar .manage-finance__operations-search {
     width: 100%;
   }
 }

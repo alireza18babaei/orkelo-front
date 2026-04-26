@@ -51,3 +51,9 @@ export const financialOperationDeletingFileIdsSelector = (state) =>
 
 export const financialOperationDeleteErrorSelector = (state) =>
   state.financialOperations.deleteError;
+
+export const financialOperationStatusUpdateStatusSelector = (state) =>
+  state.financialOperations.statusUpdateStatus;
+
+export const financialOperationStatusUpdateErrorSelector = (state) =>
+  state.financialOperations.statusUpdateError;

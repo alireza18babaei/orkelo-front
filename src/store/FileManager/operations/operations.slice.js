@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import {
   createFinancialOperation,
+  updateFinancialOperationStatus,
   deleteFinancialOperation,
   deleteFinancialOperationFile,
   getFinancialOperationDetail,
@@ -16,6 +17,8 @@ const initialState = {
   links: null,
   meta: null,
   total: 0,
+  statusUpdateStatus: 'idle',
+  statusUpdateError: null,
   currentOperation: null,
   currentOperationLoading: false,
   currentOperationError: null,
@@ -36,6 +39,8 @@ const financialOperationsSlice = createSlice({
   initialState,
   reducers: {
     clearFinancialOperationDetail(state) {
+      state.statusUpdateStatus = 'idle';
+      state.statusUpdateError = null;
       state.currentOperation = null;
       state.currentOperationLoading = false;
       state.currentOperationError = null;
@@ -51,6 +56,8 @@ const financialOperationsSlice = createSlice({
       state.deleteError = null;
     },
     resetFinancialOperationMutationState(state) {
+      state.statusUpdateStatus = 'idle';
+      state.statusUpdateError = null;
       state.createStatus = 'idle';
       state.createError = null;
       state.updateStatus = 'idle';
@@ -124,6 +131,44 @@ const financialOperationsSlice = createSlice({
           message: 'Failed to update financial operation',
         };
       });
+
+    builder
+      .addCase(updateFinancialOperationStatus.pending, (state) => {
+        // Track status mutations separately from edit form mutations.
+        state.statusUpdateStatus = 'loading';
+        state.statusUpdateError = null;
+      })
+      .addCase(updateFinancialOperationStatus.fulfilled, (state, action) => {
+        const nextOperation = action.payload?.operation ?? null;
+
+        state.statusUpdateStatus = 'succeeded';
+        state.statusUpdateError = null;
+
+        if (!nextOperation) return;
+
+        state.items = (state.items || []).map((operation) =>
+          String(operation?.id ?? '') === String(nextOperation?.id ?? '')
+            ? { ...operation, ...nextOperation }
+            : operation,
+        );
+
+        if (
+          state.currentOperation &&
+          String(state.currentOperation?.id ?? '') === String(nextOperation?.id ?? '')
+        ) {
+          state.currentOperation = {
+            ...state.currentOperation,
+            ...nextOperation,
+          };
+        }
+      })
+      .addCase(updateFinancialOperationStatus.rejected, (state, action) => {
+        state.statusUpdateStatus = 'failed';
+        state.statusUpdateError = action.payload || {
+          message: 'Failed to update operation status',
+        };
+      });
+
 
     builder
       .addCase(deleteFinancialOperation.pending, (state) => {
