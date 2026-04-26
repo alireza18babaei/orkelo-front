@@ -9,6 +9,7 @@ import ProjectManager from '../Pages/ManageProjects/Project';
 import Profile from '../Pages/Profile';
 import MyProjects from '../Pages/Profile/MyProjects';
 import ProjectBoard from '../Pages/Projects/ProjectBoard';
+import ManageFinance from '../Pages/ManageFinance';
 import RequireAuth from './auth/RequireAuth';
 import RequireGuest from './auth/RequireGeust';
 import UserReports from '../Pages/ManageProjects/Project/UserReports';
@@ -29,6 +30,7 @@ export const routesConfig = [
         children: [
           { path: '/', element: <Home /> },
           { path: '/manage-projects', element: <ManageProjects/> },
+          { path: '/manage-finance', element: <ManageFinance /> },
           { path: '/manage-projects/user/:userId', element: <UserReports/>},
           { path: '/manage-projects/:projectId', element: <ProjectManager/> },
           { path: '/manage-projects/:projectId/user/:userId', element: <UserReports/>},

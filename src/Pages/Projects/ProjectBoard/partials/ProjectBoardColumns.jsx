@@ -815,7 +815,7 @@ const ProjectBoardColumns = ({
                           },
                           {
                             key: "archive-completed-tasks",
-                            label: "Archive completed Tasksg",
+                            label: "Archive completed",
                             icon: "ti-archive",
                             disabled: !!archivingCompletedByColumnId?.[String(col.id)],
                             onClick: () => onArchiveCompletedTasks?.(col),

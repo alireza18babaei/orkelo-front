@@ -25,6 +25,10 @@ import {
 import { createProjectThunk } from '../../store/projects/projectsSlice';
 import { resolvePublicMediaUrl } from '../../utils/mediaUrl';
 import { toastError, toastSuccess } from '../../utils/sweetAlert';
+import {
+  fileManagementCanViewSelector,
+} from '../../store/FileManager/access/access.selector';
+import { probeFileManagementSectionAccess } from '../../store/FileManager/access/access.thunk';
 
 const DEFAULT_CREATE_PROJECT_VISIBILITY = 'private';
 
@@ -37,6 +41,10 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   );
   const projects = useSelector((s) => s.projects.items);
   const loading = useSelector((s) => s.projects.loading);
+  const activeCompanyId = useSelector(
+    (s) => s.companyContext?.activeCompanyId ?? s.companyContext?.activeCompany?.id ?? null,
+  );
+  const canViewFinanceCenter = useSelector(fileManagementCanViewSelector);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -62,9 +70,20 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   const { ref: statusRef, ...statusField } = register('status');
   const { ref: descriptionRef, ...descriptionField } = register('description');
 
+  const companyRole = String(
+    activeCompanyRole ?? user?.company_role ?? user?.user_type ?? ''
+  ).trim().toLowerCase();
+
   useEffect(() => {
     register('visibility');
   }, [register]);
+
+  useEffect(() => {
+    if (!user?.id || !activeCompanyId) return;
+    if (companyRole === 'company_owner') return;
+
+    dispatch(probeFileManagementSectionAccess());
+  }, [activeCompanyId, companyRole, dispatch, user?.id]);
 
   const buildFormValues = () => ({
     name: '',
@@ -148,10 +167,6 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     ];
   }, [projectLinks]);
 
-  const companyRole = String(
-    activeCompanyRole ?? user?.company_role ?? user?.user_type ?? ''
-  ).trim().toLowerCase();
-
   const hasProjectManagerRole = Array.isArray(user?.project_roles)
     ? user.project_roles.some(
         (item) =>
@@ -163,6 +178,9 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     companyRole === 'company_owner' ||
     companyRole === 'company_supervisor' ||
     hasProjectManagerRole;
+
+  const canSeeFinanceSection =
+    companyRole === 'company_owner' || canViewFinanceCenter;
 
   const sidebarConfig = useMemo(() => {
     const items = [
@@ -196,8 +214,24 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
       });
     }
 
+    if (canSeeFinanceSection) {
+      items.push({
+        type: 'single',
+        name: 'Finance Center',
+        path: '/manage-finance',
+        iconClass: 'ph-duotone ph-receipt',
+        collapseId: 'finance-collapse',
+      });
+    }
+
     return items;
-  }, [projectLinks, projectMenuItems, loading, canSeeManageReports]);
+  }, [
+    projectLinks,
+    projectMenuItems,
+    loading,
+    canSeeManageReports,
+    canSeeFinanceSection,
+  ]);
 
   return (
     <nav className={`vertical-sidebar ${sidebarOpen ? 'semi-nav' : ''}`}>
