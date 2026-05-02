@@ -179,6 +179,11 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     companyRole === 'company_supervisor' ||
     hasProjectManagerRole;
 
+  const canSeeActiveTrackers =
+    companyRole === 'company_owner' ||
+    companyRole === 'company_supervisor' ||
+    hasProjectManagerRole;
+
   const canSeeFinanceSection =
     companyRole === 'company_owner' || canViewFinanceCenter;
 
@@ -203,6 +208,16 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
         children: projectMenuItems,
       },
     ];
+
+    if (canSeeActiveTrackers) {
+      items.push({
+        type: 'single',
+        name: 'Active Trackers',
+        path: '/active-trackers',
+        iconClass: 'ph-duotone ph-timer',
+        collapseId: 'active-trackers-collapse',
+      });
+    }
 
     if (canSeeManageReports) {
       items.push({
@@ -229,6 +244,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     projectLinks,
     projectMenuItems,
     loading,
+    canSeeActiveTrackers,
     canSeeManageReports,
     canSeeFinanceSection,
   ]);

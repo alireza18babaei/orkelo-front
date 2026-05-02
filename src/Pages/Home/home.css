@@ -187,63 +187,130 @@ nav.dark-sidebar ~ .app-content .home-list__item {
   border-color: rgba(255, 255, 255, 0.13);
 }
 
+.tracker__homeContent{
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
 .tracker__homePage{
-  display: grid;
-  gap: 0.85rem;
-  transition: background-color .3s ease, border-color .3s ease;
-  border: 1px solid rgba(var(--secondary), .14);
-  background: rgba(255, 255, 255, 0.3);
-  padding: 0.8rem;
+    /* Keep trackers compact and aligned in a responsive row-based grid. */
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.75rem;
+    transition: background-color .3s ease, border-color .3s ease;
+    border: 1px solid rgba(var(--secondary), .14);
+    background: rgba(255, 255, 255, 0.3);
+    padding: 0.75rem;
 }
 
 .tracker__homeLink{
-  text-decoration: none;
-  color: inherit;
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
 }
 
 .tracker__homeCard{
-  border: 1px solid rgba(var(--secondary), 0.14);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.62);
-  box-shadow: 0 10px 24px rgba(var(--dark), 0.04);
-  transition: background-color .3s ease, border-color .3s ease, transform .3s ease, box-shadow .3s ease;
+    /*  Override Bootstrap spacing so each tracker stays compact inside one grid cell. */
+    height: 100%;
+    min-width: 0;
+    border: 1px solid rgba(var(--secondary), 0.14);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.62);
+    box-shadow: 0 10px 24px rgba(var(--dark), 0.04);
+    padding: 0.85rem !important;
+    transition: background-color .3s ease, border-color .3s ease, transform .3s ease, box-shadow .3s ease;
 }
 
 .tracker__homeLink:hover .tracker__homeCard{
-  background-color: rgba(var(--primary), 0.12);
-  border-color: rgba(var(--primary), 0.34);
-  box-shadow: 0 14px 28px rgba(var(--primary), 0.12);
-  transform: translateY(-1px);
+    background-color: rgba(var(--primary), 0.12);
+    border-color: rgba(var(--primary), 0.34);
+    box-shadow: 0 14px 28px rgba(var(--primary), 0.12);
+    transform: translateY(-1px);
 }
 
 .trackerBadge__homePage{
-  margin-bottom: 0.9rem;
-  color: rgba(var(--primary), 1);
-  background: rgba(var(--primary), 0.12);
-  border: 1px solid rgba(var(--primary), 0.18);
+    max-width: 100%;
+    margin-bottom: 0.7rem;
+    color: rgba(var(--primary), 1);
+    background: rgba(var(--primary), 0.12);
+    border: 1px solid rgba(var(--primary), 0.18);
+    font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .trackerDetail__homePage{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.9rem;
-  margin-bottom: 0.55rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.18rem;
+    margin-bottom: 0.5rem;
 }
 
 .trackerDetail__homePage:last-child{
-  margin-bottom: 0;
+    margin-bottom: 0;
 }
 
 .trackerLabel__homePage{
-  font-weight: 700;
-  color: rgba(var(--secondary), 0.95);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: rgba(var(--secondary), 0.95);
 }
 
 .trackerValue__homePage{
-  color: rgba(var(--dark), 0.94);
-  text-align: end;
+    min-width: 0;
+    color: rgba(var(--dark), 0.94);
+    font-size: 0.86rem;
+    text-align: start;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
+
+.tracker__toggleWrap{
+    display: flex;
+    justify-content: center;
+}
+
+.tracker__toggleButton{
+    /*  The toggle is intentionally outside the grid so it always stays under the tracker card. */
+    border: 1px solid rgba(var(--primary), 0.28);
+    border-radius: 10px;
+    padding: 0.45rem 1.1rem;
+    background: rgba(var(--primary), 0.12);
+    color: rgba(var(--primary), 1);
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color .25s ease, border-color .25s ease, transform .25s ease;
+}
+
+.tracker__toggleButton:hover{
+    background: rgba(var(--primary), 0.18);
+    border-color: rgba(var(--primary), 0.42);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 1400px) {
+    .tracker__homePage{
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 992px) {
+    .tracker__homePage{
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .tracker__homePage{
+        grid-template-columns: 1fr;
+    }
+}
+
 
 @media (max-width: 1200px) {
   .home-dashboard__grid {

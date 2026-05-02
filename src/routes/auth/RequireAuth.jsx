@@ -32,11 +32,21 @@ export default function RequireAuth() {
     userId != null &&
     (projectsStatus === "idle" || !projectsBelongToCurrentUser);
 
+  const hasLoadedProjectRoles =
+    user != null &&
+    Object.prototype.hasOwnProperty.call(user, "project_roles") &&
+    Array.isArray(user.project_roles);
+
+  const shouldSyncMe =
+    !!accessToken &&
+    meStatus === "idle" &&
+    (!user || !hasLoadedProjectRoles);
+
   useEffect(() => {
-    if (accessToken && !user && meStatus === "idle") {
+    if (shouldSyncMe) {
       dispatch(meThunk());
     }
-  }, [accessToken, user, meStatus, dispatch]);
+  }, [dispatch, shouldSyncMe]);
 
   useEffect(() => {
     if (shouldSyncProjects && !projectsLoading) {

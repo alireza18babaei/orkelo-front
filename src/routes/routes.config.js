@@ -3,6 +3,7 @@ import Layout from '../Layout';
 import Login from '../Pages/AuthPages/Login';
 import NotFound from '../Pages/AuthPages/NotFound';
 import SignUp from '../Pages/AuthPages/SignUp';
+import ActiveTrackers from '../Pages/ActiveTrackers';
 import Home from '../Pages/Home';
 import ManageProjects from '../Pages/ManageProjects';
 import ProjectManager from '../Pages/ManageProjects/Project';
@@ -29,6 +30,7 @@ export const routesConfig = [
         element: <Layout />,
         children: [
           { path: '/', element: <Home /> },
+          { path: '/active-trackers', element: <ActiveTrackers /> },
           { path: '/manage-projects', element: <ManageProjects/> },
           { path: '/manage-finance', element: <ManageFinance /> },
           { path: '/manage-projects/user/:userId', element: <UserReports/>},
