@@ -295,13 +295,18 @@ const ProjectBoard = () => {
     if (shouldForce) tasksForcedProjectRef.current = String(id);
   }, [dispatch, id, columnsProjectId, columnIdsKey]);
 
+  const columnsReadyForActiveProject =
+    columnsProjectId != null &&
+    id != null &&
+    String(columnsProjectId) === String(id);
   const tasksPending =
     tasksLoadingByColumnId && Object.keys(tasksLoadingByColumnId).length > 0;
   const tasksNeedLoad =
-    columnsProjectId && String(columnsProjectId) === String(id)
+    columnsReadyForActiveProject
       ? (projectColumns || []).some((c) => c?.tasks == null)
-      : false;
-  const tasksLoading = tasksPending || tasksNeedLoad;
+      : true;
+  const tasksLoading =
+    !columnsReadyForActiveProject || tasksPending || tasksNeedLoad;
 
   const {
     handleSubmit,
@@ -842,6 +847,8 @@ const ProjectBoard = () => {
           <div className="project-board-main__content">
             <div className="project-board-main__scroll app-scroll">
               <ProjectBoardColumns
+                key={String(project.id)}
+                projectId={project.id}
                 columns={columns}
                 status={columnsStatus}
                 tasksLoading={tasksLoading}

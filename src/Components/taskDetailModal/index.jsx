@@ -36,6 +36,9 @@ import TaskAssigneeDropdown from "./TaskAssigneeDropdown";
 import TaskWatchersDropdown from "./TaskWatchersDropdown";
 import TaskExcludedUsersDropdown from "./TaskExcludedUsersDropdown";
 import TaskVisibleForDropdown from "./TaskVisibleForDropdown";
+import TaskPriorityDropdown, {
+  normalizeTaskPriority,
+} from "./TaskPriorityDropdown";
 import ChecklistTree from "./ChecklistTree";
 import TaskTimer from "./TaskTimer";
 import { restoreArchivedTasks } from "../../store/projects/projectArchivedTasksSlice";
@@ -204,6 +207,11 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   );
   const [dueDropdownOpen, setDueDropdownOpen] = useState(false);
   const [dueSaving, setDueSaving] = useState(false);
+  const [priority, setPriority] = useState(normalizeTaskPriority(t.priority));
+  const [savedPriority, setSavedPriority] = useState(
+    normalizeTaskPriority(t.priority),
+  );
+  const [prioritySaving, setPrioritySaving] = useState(false);
   const [createdAt, setCreatedAt] = useState(t.created_at ?? null);
   const [updatedAt, setUpdatedAt] = useState(t.updated_at ?? null);
   const [checklistItems, setChecklistItems] = useState([]);
@@ -454,6 +462,10 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     setDueDraftDate(nextDueAt ? new Date(nextDueAt) : null);
     setDueDropdownOpen(false);
     setDueSaving(false);
+    const nextPriority = normalizeTaskPriority(t.priority);
+    setPriority(nextPriority);
+    setSavedPriority(nextPriority);
+    setPrioritySaving(false);
     setCreatedAt(t.created_at ?? null);
     setUpdatedAt(t.updated_at ?? null);
   }, [
@@ -465,6 +477,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     t.created_at,
     t.updated_at,
     t.due_at,
+    t.priority,
     t.id,
   ]);
 
@@ -765,6 +778,46 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     }
     syncDueDraftFromCurrent();
     setDueDropdownOpen(true);
+  };
+
+  const updateTaskPriority = async (nextPriorityValue) => {
+    const nextPriority = normalizeTaskPriority(nextPriorityValue);
+    if (nextPriority === savedPriority) {
+      setPriority(nextPriority);
+      return;
+    }
+
+    const previousPriority = priority;
+    try {
+      setPrioritySaving(true);
+      setPriority(nextPriority);
+      const res = await updateTask({ priority: nextPriority });
+      const updated = res?.data?.data ?? res?.data ?? {};
+      const persistedPriority = normalizeTaskPriority(
+        updated?.priority ?? nextPriority,
+      );
+
+      dispatch(
+        updateTaskInColumn({
+          columnId: resolvedColumnId ?? taskColumnId,
+          taskId,
+          patch: { priority: persistedPriority },
+        }),
+      );
+      setPriority(persistedPriority);
+      setSavedPriority(persistedPriority);
+      refreshDetail();
+    } catch (err) {
+      setPriority(previousPriority);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Update priority failed";
+      toastError(msg);
+    } finally {
+      setPrioritySaving(false);
+    }
   };
 
   const handleClose = () => {
@@ -1408,6 +1461,18 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
                         </div>
                       </DropdownMenu>
                     </Dropdown>
+                    <TaskPriorityDropdown
+                      value={priority}
+                      saving={prioritySaving}
+                      disabled={
+                        !effectiveProjectId ||
+                        !taskId ||
+                        !resolvedColumnId ||
+                        detailLoading ||
+                        !detailTask
+                      }
+                      onChange={updateTaskPriority}
+                    />
                     <TaskTagsDropdown
                       projectId={effectiveProjectId}
                       taskId={taskId}

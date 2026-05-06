@@ -4,11 +4,11 @@ import {getTextDirectionProps} from '../../utils/textDirection';
 const TASK_PRIORITY_META = {
   low: {
     label: 'Low',
-    background: '#198754',
+    background: '#B0EECD',
   },
   medium: {
     label: 'Medium',
-    background: '#0d6efd',
+    background: '#7FE4E4',
   },
   high: {
     label: 'High',
@@ -24,12 +24,14 @@ const getTaskPriorityMeta = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
   const key = Object.prototype.hasOwnProperty.call(TASK_PRIORITY_META, normalized)
     ? normalized
-    : 'medium';
+    : null;
 
-  return {
-    value: key,
-    ...TASK_PRIORITY_META[key],
-  };
+  return key
+    ? {
+        value: key,
+        ...TASK_PRIORITY_META[key],
+      }
+    : null;
 };
 
 const BoardItem = ({
@@ -73,6 +75,7 @@ const BoardItem = ({
 
   const tags = normalizeTags(taskTags);
   const priority = getTaskPriorityMeta(taskPriority);
+  const hasPriority = Boolean(priority);
   const taskDateText = String(taskDate ?? '').trim();
   const taskFileAttachCountText = String(taskFileAttachCount ?? '').trim();
   const taskFileAttachCountNumber = Number(taskFileAttachCountText);
@@ -135,18 +138,28 @@ const BoardItem = ({
       {...rest}
     >
       <div
-        className="board-item-content position-relative"
-        style={{'--board-item-priority-color': priority.background}}
+        className={`board-item-content position-relative ${
+          isCompleted ? 'board-item-content--completed' : ''
+        } ${
+          !hasPriority ? 'board-item-content--without-priority' : ''
+        }`}
+        style={
+          hasPriority
+            ? {'--board-item-priority-color': priority.background}
+            : undefined
+        }
       >
-        <div
-          className={`board-item-priority-cue board-item-priority-cue--${priority.value}`}
-          aria-label={`Priority: ${priority.label}`}
-          title={`${priority.label} priority`}
-        >
-          <span className="board-item-priority-cue__label">
-            {priority.label} priority
-          </span>
-        </div>
+        {!isCompleted && hasPriority ? (
+          <div
+            className={`board-item-priority-cue board-item-priority-cue--${priority.value}`}
+            aria-label={`Priority: ${priority.label}`}
+            title={`${priority.label} priority`}
+          >
+            <span className="board-item-priority-cue__label">
+              {priority.label} priority
+            </span>
+          </div>
+        ) : null}
 
         {isCompleted ? (
           <div

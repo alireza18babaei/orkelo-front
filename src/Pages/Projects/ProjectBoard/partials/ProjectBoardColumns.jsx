@@ -314,6 +314,7 @@ const TaskCard = memo(function TaskCard({
         taskChecklistCompletedCount={checklistProgress.completed}
         taskChecklistTotalCount={checklistProgress.total}
         taskTags={task.tags ?? []}
+        taskPriority={task.priority}
         taskUserImg={resolveTaskAssigneeAvatar(task)}
         isCompleted={completed}
       />
@@ -500,6 +501,7 @@ const Column = memo(function Column({
 });
 
 const ProjectBoardColumns = ({
+  projectId,
   columns: columnsProp,
   status,
   tasksLoading = false,
@@ -529,6 +531,8 @@ const ProjectBoardColumns = ({
   const columnContentElsRef = useRef({});
   const pendingCreatedTaskScrollColumnIdRef = useRef(null);
   const readyCreatedTaskScrollColumnIdRef = useRef(null);
+  const initialScrollProjectKeyRef = useRef(null);
+  const projectScrollKey = String(projectId ?? "default");
 
   const registerColumnContentRef = useCallback((columnId, node) => {
     const key = String(columnId ?? "");
@@ -568,30 +572,57 @@ const ProjectBoardColumns = ({
 
   const scrollAllColumnsToBottom = useCallback(
     (behavior = "auto") => {
+      let didScroll = false;
+
       Object.values(columnContentElsRef.current || {}).forEach((el) => {
-        scrollContentElementToBottom(el, behavior);
+        if (scrollContentElementToBottom(el, behavior)) {
+          didScroll = true;
+        }
       });
+
+      return didScroll;
     },
     [scrollContentElementToBottom],
   );
 
   useLayoutEffect(() => {
     if (isDraggingRef.current) return undefined;
+    if (initialScrollProjectKeyRef.current === projectScrollKey) return undefined;
+    if (status === "loading" || tasksLoading || !board.columns.length) return undefined;
 
     let raf1 = 0;
     let raf2 = 0;
+    let retryTimeout = 0;
+    let attempts = 0;
+
+    const runScroll = () => {
+      if (scrollAllColumnsToBottom("auto")) {
+        initialScrollProjectKeyRef.current = projectScrollKey;
+        return;
+      }
+
+      attempts += 1;
+      if (attempts <= 4) {
+        retryTimeout = window.setTimeout(runScroll, 50);
+      }
+    };
 
     raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        scrollAllColumnsToBottom("auto");
-      });
+      raf2 = window.requestAnimationFrame(runScroll);
     });
 
     return () => {
       window.cancelAnimationFrame(raf1);
       window.cancelAnimationFrame(raf2);
+      window.clearTimeout(retryTimeout);
     };
-  }, [board, status, tasksLoading, scrollAllColumnsToBottom]);
+  }, [
+    board.columns.length,
+    projectScrollKey,
+    status,
+    tasksLoading,
+    scrollAllColumnsToBottom,
+  ]);
 
 
   useEffect(() => {
