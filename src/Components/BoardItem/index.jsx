@@ -139,7 +139,7 @@ const BoardItem = ({
     >
       <div
         className={`board-item-content position-relative ${
-          isCompleted ? 'board-item-content--completed' : ''
+          isCompleted && !hasPriority ? 'board-item-content--completed' : ''
         } ${
           !hasPriority ? 'board-item-content--without-priority' : ''
         }`}
@@ -149,7 +149,7 @@ const BoardItem = ({
             : undefined
         }
       >
-        {!isCompleted && hasPriority ? (
+        {hasPriority ? (
           <div
             className={`board-item-priority-cue board-item-priority-cue--${priority.value}`}
             aria-label={`Priority: ${priority.label}`}
