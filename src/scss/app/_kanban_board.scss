@@ -336,7 +336,17 @@ nav.dark-sidebar
 
 .board-item-meta-icon {
   flex: 0 0 auto;
-  font-size: 1rem;
+  font-size: .9rem;
+  line-height: 1;
+}
+
+.board-item-meta-item--rating {
+  color: rgba(var(--warning), 1);
+  font-weight: 600;
+}
+
+.board-item-rating-value {
+  font-size: 0.8125rem;
   line-height: 1;
 }
 
@@ -1276,6 +1286,43 @@ nav.dark-sidebar ~ .app-content .task-detail-modal__sidebar .dropdown-toggle {
   &.is-overdue .task-detail-due-toggle__value {
     color: rgba(var(--danger), 1);
   }
+}
+
+.task-rating-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  padding: 0.28rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(var(--warning), 0.16);
+  color: rgba(var(--warning), 1);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.task-rating-menu__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.task-detail-modal-dialog .task-rating-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--td-text);
+  font-weight: 700;
+}
+
+.task-detail-modal-dialog .task-rating-option.is-selected {
+  background: rgba(var(--warning), 0.18);
+  color: rgba(var(--warning), 1);
 }
 
 .checklist-item-checkbox-wrap {

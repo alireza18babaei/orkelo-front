@@ -1,34 +1,3 @@
-.manage-finance__hero {
-  background:
-    radial-gradient(circle at top right, rgba(var(--primary), 0.18), transparent 35%),
-    linear-gradient(135deg, rgba(var(--dark), 0.96), rgba(var(--secondary), 0.92));
-  color: #fff;
-}
-
-.manage-finance__hero .card-body {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.manage-finance__hero-copy {
-  max-width: 44rem;
-}
-
-.manage-finance__hero-copy p {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.manage-finance__hero-meta {
-  min-width: 12rem;
-  padding: 1rem 1.2rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(14px);
-}
-
-.manage-finance__hero-meta-label,
 .manage-finance__summary-label {
   display: block;
   font-size: 0.8rem;
@@ -729,15 +698,6 @@
 }
 
 @media (max-width: 991.98px) {
-  .manage-finance__hero .card-body {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .manage-finance__hero-meta {
-    width: 100%;
-  }
-
   .manage-finance__filters,
   .manage-finance__member-row {
     grid-template-columns: 1fr;

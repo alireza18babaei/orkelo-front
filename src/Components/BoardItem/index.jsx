@@ -42,9 +42,10 @@ const BoardItem = ({
                      taskFileAttachCount,
                      taskChecklistCompletedCount,
                      taskChecklistTotalCount,
-                     taskTags,
-                     taskPriority,
-                     taskUserImg,
+                      taskTags,
+                      taskPriority,
+                      taskRating,
+                      taskUserImg,
                      isCompleted = false,
                      innerRef,
                      className = '',
@@ -75,7 +76,7 @@ const BoardItem = ({
 
   const tags = normalizeTags(taskTags);
   const priority = getTaskPriorityMeta(taskPriority);
-  const hasPriority = Boolean(priority);
+  const showPriorityCue = Boolean(priority) && !isCompleted;
   const taskDateText = String(taskDate ?? '').trim();
   const taskFileAttachCountText = String(taskFileAttachCount ?? '').trim();
   const taskFileAttachCountNumber = Number(taskFileAttachCountText);
@@ -83,19 +84,30 @@ const BoardItem = ({
     const count = Number(value);
     return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
   };
+  const normalizeRating = (value) => {
+    const rating = Number(value);
+    if (!Number.isFinite(rating)) return null;
+    const rounded = Math.trunc(rating);
+    return rounded >= 1 && rounded <= 5 ? rounded : null;
+  };
   const checklistTotalCount = normalizeCount(taskChecklistTotalCount);
   const checklistCompletedCount = Math.min(
     normalizeCount(taskChecklistCompletedCount),
     checklistTotalCount,
   );
+  const normalizedRating = normalizeRating(taskRating);
   const showTaskChecklistProgress = checklistTotalCount > 0;
+  const showTaskRating = normalizedRating !== null;
   const showTaskDate = Boolean(taskDateText);
   const showTaskFileAttachCount =
     Boolean(taskFileAttachCountText) &&
     (!Number.isFinite(taskFileAttachCountNumber) ||
       taskFileAttachCountNumber > 0);
   const showTaskMeta =
-    showTaskDate || showTaskFileAttachCount || showTaskChecklistProgress;
+    showTaskDate ||
+    showTaskFileAttachCount ||
+    showTaskChecklistProgress ||
+    showTaskRating;
   const getTagName = (t) =>
     t?.name ?? t?.title ?? t?.label ?? t?.text ?? String(t ?? '');
   const getTagColor = (t) => String(t?.color ?? t?.hex ?? '').trim();
@@ -139,17 +151,17 @@ const BoardItem = ({
     >
       <div
         className={`board-item-content position-relative ${
-          isCompleted && !hasPriority ? 'board-item-content--completed' : ''
+          isCompleted ? 'board-item-content--completed' : ''
         } ${
-          !hasPriority ? 'board-item-content--without-priority' : ''
+          !showPriorityCue ? 'board-item-content--without-priority' : ''
         }`}
         style={
-          hasPriority
+          showPriorityCue
             ? {'--board-item-priority-color': priority.background}
             : undefined
         }
       >
-        {hasPriority ? (
+        {showPriorityCue ? (
           <div
             className={`board-item-priority-cue board-item-priority-cue--${priority.value}`}
             aria-label={`Priority: ${priority.label}`}
@@ -281,6 +293,17 @@ const BoardItem = ({
               ) : null}
 
               <div className="board-item-meta-secondary">
+                {showTaskRating ? (
+                  <span
+                    className="board-item-meta-item board-item-meta-item--rating"
+                    title={`Rating: ${normalizedRating}/5`}
+                    aria-label={`Rating: ${normalizedRating}/5`}
+                  >
+                    <i className="ti ti-star-filled board-item-meta-icon"></i>
+                    <span className="board-item-rating-value">{normalizedRating}/5</span>
+                  </span>
+                ) : null}
+
                 {showTaskFileAttachCount ? (<span className="board-item-meta-item">
                 <i className="ti ti-paperclip board-item-meta-icon"></i>
                 <span className="f-s-14">{taskFileAttachCountText}</span>

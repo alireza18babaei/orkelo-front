@@ -39,6 +39,9 @@ import TaskVisibleForDropdown from "./TaskVisibleForDropdown";
 import TaskPriorityDropdown, {
   normalizeTaskPriority,
 } from "./TaskPriorityDropdown";
+import TaskRatingDropdown, {
+  normalizeTaskRating,
+} from "./TaskRatingDropdown";
 import ChecklistTree from "./ChecklistTree";
 import TaskTimer from "./TaskTimer";
 import { restoreArchivedTasks } from "../../store/projects/projectArchivedTasksSlice";
@@ -190,6 +193,17 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   );
 
   const currentUserId = useSelector((state) => state.auth.user?.id);
+  const currentUserRole = useSelector(
+    (state) => state.auth.user?.company_role ?? state.auth.user?.user_type ?? null,
+  );
+  const activeCompanyRole = useSelector(
+    (state) => state.companyContext?.activeCompany?.membership?.role ?? null,
+  );
+  const companyRole = String(activeCompanyRole ?? currentUserRole ?? "")
+    .trim()
+    .toLowerCase();
+  const canRateTask =
+    companyRole === "company_owner" || companyRole === "company_supervisor";
 
   const [description, setDescription] = useState(t.description || "");
   const [savedDescription, setSavedDescription] = useState(t.description || "");
@@ -212,6 +226,9 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     normalizeTaskPriority(t.priority),
   );
   const [prioritySaving, setPrioritySaving] = useState(false);
+  const [rating, setRating] = useState(normalizeTaskRating(t.rating));
+  const [savedRating, setSavedRating] = useState(normalizeTaskRating(t.rating));
+  const [ratingSaving, setRatingSaving] = useState(false);
   const [createdAt, setCreatedAt] = useState(t.created_at ?? null);
   const [updatedAt, setUpdatedAt] = useState(t.updated_at ?? null);
   const [checklistItems, setChecklistItems] = useState([]);
@@ -466,6 +483,10 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     setPriority(nextPriority);
     setSavedPriority(nextPriority);
     setPrioritySaving(false);
+    const nextRating = normalizeTaskRating(t.rating);
+    setRating(nextRating);
+    setSavedRating(nextRating);
+    setRatingSaving(false);
     setCreatedAt(t.created_at ?? null);
     setUpdatedAt(t.updated_at ?? null);
   }, [
@@ -478,6 +499,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     t.updated_at,
     t.due_at,
     t.priority,
+    t.rating,
     t.id,
   ]);
 
@@ -817,6 +839,53 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
       toastError(msg);
     } finally {
       setPrioritySaving(false);
+    }
+  };
+
+  const updateTaskRating = async (nextRatingValue) => {
+    const nextRating = normalizeTaskRating(nextRatingValue);
+    if (!nextRating) {
+      toastError("Rating must be from 1 to 5");
+      return;
+    }
+
+    if (nextRating === savedRating) {
+      setRating(nextRating);
+      return;
+    }
+
+    const previousRating = rating;
+    try {
+      setRatingSaving(true);
+      setRating(nextRating);
+      const res = await api.patch(
+        `/projects/${effectiveProjectId}/tasks/${taskId}/rating`,
+        { rating: nextRating },
+      );
+      const updated = res?.data?.data ?? res?.data ?? {};
+      const persistedRating = normalizeTaskRating(updated?.rating ?? nextRating);
+
+      dispatch(
+        updateTaskInColumn({
+          columnId: resolvedColumnId ?? taskColumnId,
+          taskId,
+          patch: { rating: persistedRating },
+        }),
+      );
+      setRating(persistedRating);
+      setSavedRating(persistedRating);
+      refreshDetail();
+      toastSuccess("Task rating updated");
+    } catch (err) {
+      setRating(previousRating);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Update rating failed";
+      toastError(msg);
+    } finally {
+      setRatingSaving(false);
     }
   };
 
@@ -1473,6 +1542,27 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
                       }
                       onChange={updateTaskPriority}
                     />
+                    {canRateTask ? (
+                      <TaskRatingDropdown
+                        value={rating}
+                        saving={ratingSaving}
+                        disabled={
+                          !effectiveProjectId ||
+                          !taskId ||
+                          detailLoading ||
+                          !detailTask
+                        }
+                        onChange={updateTaskRating}
+                      />
+                    ) : rating ? (
+                      <div className="d-flex align-items-center justify-content-between px-0 w-100">
+                        <span className="d-flex align-items-center gap-2">
+                          <i className="ti ti-star fs-5"></i>
+                          Rating
+                        </span>
+                        <span className="task-rating-pill">{rating}/5</span>
+                      </div>
+                    ) : null}
                     <TaskTagsDropdown
                       projectId={effectiveProjectId}
                       taskId={taskId}

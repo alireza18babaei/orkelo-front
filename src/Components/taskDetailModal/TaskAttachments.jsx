@@ -321,7 +321,11 @@ export default function TaskAttachments({
       updateTaskInColumn({
         columnId,
         taskId,
-        patch: { files_count: count, attachments: count },
+        patch: {
+          total_attachment: count,
+          files_count: count,
+          attachments_count: count,
+        },
       }),
     );
   };

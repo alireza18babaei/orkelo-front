@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Alert, Badge, Card, Col, Row } from 'react-bootstrap';
+import { Alert, Card, Col, Row } from 'react-bootstrap';
 import {
   fileManagementAccessErrorSelector,
   fileManagementAccessMembersSelector,
@@ -35,14 +35,6 @@ const FINANCE_TABS = [
 ];
 
 const normalizeRole = (role) => String(role ?? '').trim().toLowerCase();
-
-const getRoleLabel = (role) => {
-  const normalized = normalizeRole(role);
-  if (normalized === 'company_owner') return 'Company Owner';
-  if (normalized === 'company_supervisor') return 'Company Supervisor';
-  if (normalized === 'project_manager') return 'Project Manager';
-  return 'Member';
-};
 
 function FinanceTabs({ activeTab, isCompanyOwner, onChange }) {
   return (
@@ -170,35 +162,6 @@ export default function ManageFinance() {
 
       {activeTab === FINANCE_CENTER_TAB ? (
         <>
-          <Col xs={12}>
-            <Card className='manage-finance__hero shadow-sm border-0'>
-              <Card.Body>
-                <div className='manage-finance__hero-copy'>
-                  <div className='d-flex flex-wrap gap-2 align-items-center mb-3'>
-                    <Badge bg='dark'>Finance Center</Badge>
-                    <Badge bg='primary'>
-                      {isCompanyOwner ? 'Owner Controls Enabled' : 'Access Enabled'}
-                    </Badge>
-                    <Badge bg='light' text='dark'>
-                      {activeCompany?.name || 'Active company'}
-                    </Badge>
-                  </div>
-
-                  <h2 className='mb-2'>Financial Operations Workspace</h2>
-                  <p className='mb-0'>
-                    Create and manage financial operations, upload supporting files,
-                    and work inside the active company finance workspace.
-                  </p>
-                </div>
-
-                <div className='manage-finance__hero-meta'>
-                  <span className='manage-finance__hero-meta-label'>Your role</span>
-                  <strong>{getRoleLabel(companyRole)}</strong>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-
           <Col xs={12}>
             <FinancialOverviewPanel enabled={canOpenSection} />
           </Col>

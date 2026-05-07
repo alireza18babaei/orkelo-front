@@ -20,22 +20,30 @@ const arrayMove = (arr, from, to) => {
 };
 
 const getTaskAttachmentCount = (task) => {
-  const raw = task?.total_attachment ?? null;
+  const candidates = [
+    task?.total_attachment,
+    task?.attachments_count,
+    task?.files_count,
+    task?.attachments,
+  ];
 
-  if (Array.isArray(raw)) return raw.length;
-  if (raw && typeof raw === "object") {
-    const maybeCount = raw.count ?? raw.total ?? raw.length ?? null;
-    if (typeof maybeCount === "number") return maybeCount;
-    if (typeof maybeCount === "string" && maybeCount.trim()) {
-      const n = Number(maybeCount);
+  for (const raw of candidates) {
+    if (Array.isArray(raw)) return raw.length;
+    if (raw && typeof raw === "object") {
+      const maybeCount = raw.count ?? raw.total ?? raw.length ?? null;
+      if (typeof maybeCount === "number") return maybeCount;
+      if (typeof maybeCount === "string" && maybeCount.trim()) {
+        const n = Number(maybeCount);
+        if (Number.isFinite(n)) return n;
+      }
+    }
+    if (typeof raw === "number") return raw;
+    if (typeof raw === "string") {
+      const n = Number(raw);
       if (Number.isFinite(n)) return n;
     }
   }
-  if (typeof raw === "number") return raw;
-  if (typeof raw === "string") {
-    const n = Number(raw);
-    if (Number.isFinite(n)) return n;
-  }
+
   return 0;
 };
 
@@ -315,6 +323,7 @@ const TaskCard = memo(function TaskCard({
         taskChecklistTotalCount={checklistProgress.total}
         taskTags={task.tags ?? []}
         taskPriority={task.priority}
+        taskRating={task.rating}
         taskUserImg={resolveTaskAssigneeAvatar(task)}
         isCompleted={completed}
       />
