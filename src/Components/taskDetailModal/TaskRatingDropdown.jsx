@@ -1,11 +1,5 @@
-import React, { useMemo, useState } from "react";
-import {
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownToggle,
-  Spinner,
-} from "reactstrap";
+import React, { useState } from "react";
+import { Spinner } from "reactstrap";
 
 export const TASK_RATING_OPTIONS = Array.from({ length: 5 }, (_, index) => index + 1);
 
@@ -23,84 +17,45 @@ export default function TaskRatingDropdown({
   saving = false,
   onChange,
 }) {
-  const [open, setOpen] = useState(false);
+  const [hoveredRating, setHoveredRating] = useState(null);
   const selectedRating = normalizeTaskRating(value);
-  const selectedLabel = useMemo(
-    () => (selectedRating ? `${selectedRating}/5` : "Rate task"),
-    [selectedRating],
-  );
-
-  const toggle = () => {
-    if (disabled || saving) return;
-    setOpen((current) => !current);
-  };
+  const displayRating = hoveredRating ?? selectedRating ?? 0;
 
   const selectRating = async (nextValue) => {
     if (disabled || saving) return;
     const nextRating = normalizeTaskRating(nextValue);
-    if (!nextRating) return;
-
-    if (nextRating === selectedRating) {
-      setOpen(false);
-      return;
-    }
+    if (!nextRating || nextRating === selectedRating) return;
 
     await onChange?.(nextRating);
-    setOpen(false);
   };
 
   return (
-    <Dropdown isOpen={open} toggle={toggle}>
-      <DropdownToggle
-        tag="button"
-        type="button"
-        disabled={disabled || saving}
-        className="btn d-flex align-items-center justify-content-between px-0 w-100"
-        style={{ boxShadow: "none" }}
+    <div className="task-rating-stars-row">
+      <div
+        className="task-rating-stars"
+        onMouseLeave={() => setHoveredRating(null)}
       >
-        <span className="d-flex align-items-center gap-2">
-          <i className="ti ti-star fs-5"></i>
-          Rating
-        </span>
-        <span className="ms-auto me-2 d-inline-flex align-items-center">
-          {saving ? (
-            <span className="small text-muted d-inline-flex align-items-center gap-2">
-              <Spinner size="sm" />
-              <span>Saving...</span>
-            </span>
-          ) : selectedRating ? (
-            <span className="task-rating-pill">{selectedLabel}</span>
-          ) : (
-            <span className="small text-muted">{selectedLabel}</span>
-          )}
-        </span>
-        <i className="ti ti-chevron-down"></i>
-      </DropdownToggle>
+        {TASK_RATING_OPTIONS.map((option) => {
+          const filled = option <= displayRating;
 
-      <DropdownMenu end className="task-rating-menu p-2" style={{ minWidth: 260 }}>
-        <div className="task-rating-menu__grid">
-          {TASK_RATING_OPTIONS.map((option) => {
-            const selected = option === selectedRating;
-
-            return (
-              <DropdownItem
-                key={option}
-                tag="button"
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  selectRating(option);
-                }}
-                className={`task-rating-option ${selected ? "is-selected" : ""}`}
-                disabled={saving}
-              >
-                {option}
-              </DropdownItem>
-            );
-          })}
-        </div>
-      </DropdownMenu>
-    </Dropdown>
+          return (
+            <button
+              key={option}
+              type="button"
+              className={`task-rating-star ${filled ? "is-filled" : ""}`}
+              aria-label={`Rate ${option} out of 5`}
+              title={`${option}/5`}
+              disabled={disabled || saving}
+              onMouseEnter={() => setHoveredRating(option)}
+              onFocus={() => setHoveredRating(option)}
+              onBlur={() => setHoveredRating(null)}
+              onClick={() => selectRating(option)}
+            >
+              <i className={`ti ${filled ? "ti-star-filled" : "ti-star"}`}></i>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

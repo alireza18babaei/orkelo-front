@@ -25,7 +25,10 @@ import {
   getColumnTasksThunk,
   updateTaskInColumn,
 } from "../../store/projects/projectColumnsSlice";
-import { getTaskDetailThunk } from "../../store/tasks/taskDetailSlice";
+import {
+  getTaskDetailThunk,
+  patchTaskDetail,
+} from "../../store/tasks/taskDetailSlice";
 import { reorderTaskChecklistItemsThunk } from "../../store/tasks/checklistSlice";
 import TaskModalPlaceHolder from "../TaskModalPlaceHolder";
 import Flatpickr from "react-flatpickr";
@@ -46,6 +49,16 @@ import ChecklistTree from "./ChecklistTree";
 import TaskTimer from "./TaskTimer";
 import { restoreArchivedTasks } from "../../store/projects/projectArchivedTasksSlice";
 import { getTextDirectionProps } from "../../utils/textDirection";
+import {
+  getTaskReviewNote,
+  getTaskReviewReviewedAt,
+  getTaskReviewReviewerName,
+  getTaskReviewStatus,
+  getTaskReviewSubmittedAt,
+  getTaskReviewSubmittedByName,
+  persistTaskReviewState,
+  TASK_REVIEW_STATUS,
+} from "../../utils/taskReviewStatus";
 
 const getChecklistOrder = (item) => {
   const value = Number(item?.position ?? 0);
@@ -169,10 +182,9 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     t?.project_id ??
     projectId ??
     null;
+  const deriveReviewStatus = (obj) => getTaskReviewStatus(obj);
   const deriveCompleted = (obj) =>
-    !!obj?.is_completed ||
-    String(obj?.status || "").toLowerCase() === "done" ||
-    String(obj?.status || "").toLowerCase() === "completed";
+    deriveReviewStatus(obj) === TASK_REVIEW_STATUS.APPROVED;
   const deriveDueAt = (obj) => obj?.due_at ?? null;
   const deriveCompletedAt = (obj) => obj?.completed_at ?? null;
   const formatDateTime = (value) => {
@@ -193,6 +205,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   );
 
   const currentUserId = useSelector((state) => state.auth.user?.id);
+  const currentUserName = useSelector((state) => state.auth.user?.name ?? "");
   const currentUserRole = useSelector(
     (state) => state.auth.user?.company_role ?? state.auth.user?.user_type ?? null,
   );
@@ -204,6 +217,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     .toLowerCase();
   const canRateTask =
     companyRole === "company_owner" || companyRole === "company_supervisor";
+  const canReviewTask = canRateTask;
 
   const [description, setDescription] = useState(t.description || "");
   const [savedDescription, setSavedDescription] = useState(t.description || "");
@@ -212,7 +226,24 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   const taskTextInputRef = useRef(null);
   const skipNextTaskTextBlurSaveRef = useRef(false);
   const [taskCompleting, setTaskCompleting] = useState(false);
+  const [taskReviewing, setTaskReviewing] = useState(false);
   const [taskCompleted, setTaskCompleted] = useState(deriveCompleted(t));
+  const [taskReviewStatus, setTaskReviewStatus] = useState(deriveReviewStatus(t));
+  const [taskReviewNote, setTaskReviewNote] = useState(getTaskReviewNote(t));
+  const [taskReviewSubmittedAt, setTaskReviewSubmittedAt] = useState(
+    getTaskReviewSubmittedAt(t),
+  );
+  const [taskReviewSubmittedByName, setTaskReviewSubmittedByName] = useState(
+    getTaskReviewSubmittedByName(t),
+  );
+  const [taskReviewReviewedAt, setTaskReviewReviewedAt] = useState(
+    getTaskReviewReviewedAt(t),
+  );
+  const [taskReviewReviewerName, setTaskReviewReviewerName] = useState(
+    getTaskReviewReviewerName(t),
+  );
+  const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const [taskCompletedAt, setTaskCompletedAt] = useState(deriveCompletedAt(t));
   const [dueAt, setDueAt] = useState(deriveDueAt(t));
   const [savedDueAt, setSavedDueAt] = useState(deriveDueAt(t));
@@ -249,6 +280,11 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   };
 
   const taskId = useMemo(() => t?.id ?? null, [t?.id]);
+  const isTaskPendingReview = taskReviewStatus === TASK_REVIEW_STATUS.PENDING;
+  const isTaskRejected = taskReviewStatus === TASK_REVIEW_STATUS.REJECTED;
+  const isTaskApproved = taskReviewStatus === TASK_REVIEW_STATUS.APPROVED;
+  const canSubmitForReview =
+    !isTaskPendingReview && !isTaskApproved && !taskCompleting;
   const taskTrackers = useMemo(() => {
     const list = detailTask?.time_trackers ?? t?.time_trackers;
     return Array.isArray(list) ? list : [];
@@ -471,7 +507,16 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     const nextText = t.text || "";
     setTaskText(nextText);
     setSavedTaskText(nextText);
-    setTaskCompleted(deriveCompleted(t));
+    const nextReviewStatus = deriveReviewStatus(t);
+    setTaskReviewStatus(nextReviewStatus);
+    setTaskReviewNote(getTaskReviewNote(t));
+    setTaskReviewSubmittedAt(getTaskReviewSubmittedAt(t));
+    setTaskReviewSubmittedByName(getTaskReviewSubmittedByName(t));
+    setTaskReviewReviewedAt(getTaskReviewReviewedAt(t));
+    setTaskReviewReviewerName(getTaskReviewReviewerName(t));
+    setRejectReasonOpen(false);
+    setRejectReason("");
+    setTaskCompleted(nextReviewStatus === TASK_REVIEW_STATUS.APPROVED);
     setTaskCompletedAt(deriveCompletedAt(t));
     const nextDueAt = deriveDueAt(t);
     setDueAt(nextDueAt);
@@ -494,6 +539,28 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     t.text,
     t.status,
     t.is_completed,
+    t.review_status,
+    t.completion_status,
+    t.approval_status,
+    t.task_review_status,
+    t.rejection_note,
+    t.review_note,
+    t.rejection_reason,
+    t.approval_note,
+    t.completion_submitted_at,
+    t.review_requested_at,
+    t.submitted_at,
+    t.completion_submitted_by,
+    t.review_requested_by,
+    t.submitted_by,
+    t.submitter,
+    t.reviewed_at,
+    t.approved_at,
+    t.rejected_at,
+    t.reviewed_by,
+    t.reviewer,
+    t.approved_by,
+    t.rejected_by,
     t.completed_at,
     t.created_at,
     t.updated_at,
@@ -843,6 +910,11 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   };
 
   const updateTaskRating = async (nextRatingValue) => {
+    if (!isTaskApproved) {
+      toastError("Task must be approved before rating");
+      return;
+    }
+
     const nextRating = normalizeTaskRating(nextRatingValue);
     if (!nextRating) {
       toastError("Rating must be from 1 to 5");
@@ -1003,54 +1075,195 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     }
   };
 
-  const completeChecklistTree = (items = []) =>
-    normalizeTree(
-      items.map((item) => ({
-        ...item,
-        is_completed: true,
-        children: completeChecklistTree(item.children || []),
-      })),
-    );
+  const getTaskPayloadFromResponse = (res, fallback = {}) => {
+    const data = res?.data?.data ?? res?.data ?? {};
+    return {
+      ...(fallback || {}),
+      ...(data && typeof data === "object" ? data : {}),
+    };
+  };
 
+  const preserveCurrentAssigneePatch = (patch = {}) => {
+    const currentAssignees = Array.isArray(detailTask?.assignees)
+      ? detailTask.assignees
+      : Array.isArray(t?.assignees)
+        ? t.assignees
+        : [];
+    const currentAssignee = detailTask?.assignee ?? t?.assignee ?? currentAssignees[0] ?? null;
+    const hasAssignees = Object.prototype.hasOwnProperty.call(patch, "assignees");
+    const hasAssignee = Object.prototype.hasOwnProperty.call(patch, "assignee");
+    const nextPatch = { ...patch };
+
+    if (
+      currentAssignees.length &&
+      (!hasAssignees || (Array.isArray(patch.assignees) && patch.assignees.length === 0))
+    ) {
+      nextPatch.assignees = currentAssignees;
+    }
+
+    if (currentAssignee && (!hasAssignee || !patch.assignee)) {
+      nextPatch.assignee = currentAssignee;
+    }
+
+    return nextPatch;
+  };
+
+  const applyReviewState = (updated, fallbackStatus) => {
+    const nextStatus = getTaskReviewStatus({
+      ...(updated || {}),
+      review_status: updated?.review_status ?? fallbackStatus,
+    });
+    const nextCompleted = nextStatus === TASK_REVIEW_STATUS.APPROVED;
+    const reviewPatch = preserveCurrentAssigneePatch({
+      ...(updated || {}),
+      review_status: nextStatus,
+    });
+    const nextSubmittedAt = getTaskReviewSubmittedAt(reviewPatch);
+    const nextReviewedAt = getTaskReviewReviewedAt(reviewPatch);
+
+    dispatch(
+      updateTaskInColumn({
+        columnId: resolvedColumnId,
+        taskId,
+        patch: reviewPatch,
+      }),
+    );
+    dispatch(patchTaskDetail(reviewPatch));
+    persistTaskReviewState(taskId, reviewPatch);
+
+    setTaskReviewStatus(nextStatus);
+    setTaskReviewNote(getTaskReviewNote(reviewPatch));
+    setTaskReviewSubmittedAt(nextSubmittedAt);
+    setTaskReviewSubmittedByName(getTaskReviewSubmittedByName(reviewPatch));
+    setTaskReviewReviewedAt(nextReviewedAt);
+    setTaskReviewReviewerName(getTaskReviewReviewerName(reviewPatch));
+    setTaskCompleted(nextCompleted);
+    setTaskCompletedAt(nextCompleted ? deriveCompletedAt(reviewPatch) : null);
+  };
 
   const handleCompleteTask = async () => {
-    if (taskCompleted || taskCompleting) return;
-    if (!projectId || !taskId) return;
+    if (!canSubmitForReview) return;
+    if (!effectiveProjectId || !taskId) return;
     try {
       setTaskCompleting(true);
-      let res;
-      try {
-        res = resolvedColumnId ? await updateTask({ status: "done" }) : null;
-      } catch (err) {
-        try {
-          res = resolvedColumnId ? await updateTask({ is_completed: 1 }) : null;
-        } catch (err2) {
-          res = await api.patch(
-            `/projects/${projectId}/tasks/${taskId}/complete`,
-          );
-        }
-      }
-      const updated = res?.data?.data ?? res?.data ?? { status: "done" };
-      dispatch(
-        updateTaskInColumn({
-          columnId: resolvedColumnId,
-          taskId,
-          patch: updated,
-        }),
+      const submittedAt = new Date().toISOString();
+      const res = await api.patch(
+        `/projects/${effectiveProjectId}/tasks/${taskId}/complete`,
+        { is_completed: true },
       );
-      setTaskCompleted(deriveCompleted(updated) || true);
-      const completedAt =
-        deriveCompletedAt(updated) ?? new Date().toISOString();
-      setTaskCompletedAt(completedAt);
-      const completedChecklistItems = completeChecklistTree(checklistItems);
-      setChecklistItems(completedChecklistItems);
-      updateTaskCardChecklistProgress(completedChecklistItems);
-      toastSuccess("Task completed");
-      refreshDetail();
+      const updated = getTaskPayloadFromResponse(res, {
+        review_status: TASK_REVIEW_STATUS.PENDING,
+        completion_submitted_at: submittedAt,
+        completion_submitted_by: currentUserName,
+      });
+
+      applyReviewState(
+        {
+          ...updated,
+          review_status: updated.review_status ?? TASK_REVIEW_STATUS.PENDING,
+          completion_submitted_at:
+            updated.completion_submitted_at ?? submittedAt,
+          completion_submitted_by:
+            updated.completion_submitted_by ?? currentUserName,
+        },
+        TASK_REVIEW_STATUS.PENDING,
+      );
+      toastSuccess("Task submitted for review");
     } catch (err) {
-      toastError(err?.message || "Complete task failed");
+      toastError(err?.message || "Submit task for review failed");
     } finally {
       setTaskCompleting(false);
+    }
+  };
+
+  const handleApproveTask = async () => {
+    if (!canReviewTask || !isTaskPendingReview || taskReviewing) return;
+    if (!effectiveProjectId || !taskId) return;
+
+    try {
+      setTaskReviewing(true);
+      const reviewedAt = new Date().toISOString();
+      const res = await api.patch(
+        `/projects/${effectiveProjectId}/tasks/${taskId}/review`,
+        { review_status: TASK_REVIEW_STATUS.APPROVED },
+      );
+      const updated = getTaskPayloadFromResponse(res, {
+        review_status: TASK_REVIEW_STATUS.APPROVED,
+        reviewed_at: reviewedAt,
+        reviewed_by: currentUserName,
+        completed_at: reviewedAt,
+        status: "done",
+      });
+
+      applyReviewState(
+        {
+          ...updated,
+          review_status: updated.review_status ?? TASK_REVIEW_STATUS.APPROVED,
+          reviewed_at: updated.reviewed_at ?? reviewedAt,
+          reviewed_by: updated.reviewed_by ?? currentUserName,
+          completed_at: updated.completed_at ?? reviewedAt,
+          status: updated.status ?? "done",
+        },
+        TASK_REVIEW_STATUS.APPROVED,
+      );
+      setRejectReasonOpen(false);
+      setRejectReason("");
+      toastSuccess("Task approved");
+    } catch (err) {
+      toastError(err?.message || "Approve task failed");
+    } finally {
+      setTaskReviewing(false);
+    }
+  };
+
+  const handleRejectTask = async () => {
+    if (!canReviewTask || !isTaskPendingReview || taskReviewing) return;
+    if (!effectiveProjectId || !taskId) return;
+
+    const note = rejectReason.trim();
+    if (!note) {
+      toastError("Rejection reason is required");
+      return;
+    }
+
+    try {
+      setTaskReviewing(true);
+      const reviewedAt = new Date().toISOString();
+      const res = await api.patch(
+        `/projects/${effectiveProjectId}/tasks/${taskId}/review`,
+        {
+          review_status: TASK_REVIEW_STATUS.REJECTED,
+          rejection_note: note,
+        },
+      );
+      const updated = getTaskPayloadFromResponse(res, {
+        review_status: TASK_REVIEW_STATUS.REJECTED,
+        rejection_note: note,
+        reviewed_at: reviewedAt,
+        reviewed_by: currentUserName,
+        status: "open",
+        completed_at: null,
+      });
+
+      applyReviewState(
+        {
+          ...updated,
+          review_status: updated.review_status ?? TASK_REVIEW_STATUS.REJECTED,
+          rejection_note: updated.rejection_note ?? note,
+          reviewed_at: updated.reviewed_at ?? reviewedAt,
+          reviewed_by: updated.reviewed_by ?? currentUserName,
+          status: updated.status ?? "open",
+          completed_at: null,
+        },
+        TASK_REVIEW_STATUS.REJECTED,
+      );
+      setRejectReasonOpen(false);
+      setRejectReason("");
+      toastSuccess("Changes requested");
+    } catch (err) {
+      toastError(err?.message || "Reject task failed");
+    } finally {
+      setTaskReviewing(false);
     }
   };
 
@@ -1062,29 +1275,34 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
       setTaskCompleting(true);
       let res;
       try {
-        res = resolvedColumnId ? await updateTask({ status: "open" }) : null;
-      } catch (err) {
         res = await api.patch(`/projects/${effectiveProjectId}/tasks/${taskId}/complete`, {
           is_completed: false,
         });
+      } catch (err) {
+        res = resolvedColumnId ? await updateTask({ status: "open" }) : null;
       }
 
-      const updated = res?.data?.data ?? res?.data ?? {
+      const updated = getTaskPayloadFromResponse(res, {
+        review_status: TASK_REVIEW_STATUS.ACTIVE,
         status: "open",
         completed_at: null,
-      };
+      });
 
-      dispatch(
-        updateTaskInColumn({
-          columnId: resolvedColumnId,
-          taskId,
-          patch: updated,
-        }),
+      applyReviewState(
+        {
+          ...updated,
+          review_status: TASK_REVIEW_STATUS.ACTIVE,
+          status: "open",
+          completed_at: null,
+          completion_submitted_at: null,
+          completion_submitted_by: null,
+          reviewed_at: null,
+          reviewed_by: null,
+          rejection_note: null,
+        },
+        TASK_REVIEW_STATUS.ACTIVE,
       );
-      setTaskCompleted(false);
-      setTaskCompletedAt(null);
       toastSuccess("Task restored");
-      refreshDetail();
     } catch (err) {
       toastError(err?.message || "Restore task failed");
     } finally {
@@ -1150,6 +1368,36 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     toastSuccess("Link Copied");
   }
 
+  const reviewStatusView = {
+    [TASK_REVIEW_STATUS.PENDING]: {
+      label: "Pending Approval",
+      className: "task-review-status-pill--pending",
+      icon: "ti ti-clock",
+      meta: taskReviewSubmittedByName
+        ? `Submitted by ${taskReviewSubmittedByName}`
+        : "Submitted for review",
+      date: taskReviewSubmittedAt,
+    },
+    [TASK_REVIEW_STATUS.APPROVED]: {
+      label: "Approved",
+      className: "task-review-status-pill--approved",
+      icon: "ti ti-circle-check",
+      meta: taskReviewReviewerName
+        ? `Approved by ${taskReviewReviewerName}`
+        : "Approved",
+      date: taskReviewReviewedAt ?? taskCompletedAt,
+    },
+    [TASK_REVIEW_STATUS.REJECTED]: {
+      label: "Changes Requested",
+      className: "task-review-status-pill--rejected",
+      icon: "ti ti-circle-x",
+      meta: taskReviewReviewerName
+        ? `Rejected by ${taskReviewReviewerName}`
+        : "Rejected",
+      date: taskReviewReviewedAt,
+    },
+  }[taskReviewStatus] ?? null;
+
   return (
     <>
       <Modal
@@ -1159,28 +1407,82 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
         className="task-detail-modal-dialog byekan-font"
       >
         <div className="d-flex justify-content-between p-4 border border-bottom-1 rounded-top task-detail-modal__header">
-          <div className="d-flex align-items-end gap-2">
-            {taskCompleted ? (
-              <div className="d-flex align-items-center gap-2">
-                <span className="badge bg-success px-3 py-2">Completed</span>
-                {taskCompletedAt ? (
-                  <span className="text-muted small">
-                    {formatDateTime(taskCompletedAt)}
+          <div className="d-flex align-items-start gap-2 flex-wrap">
+            {reviewStatusView ? (
+              <div className="task-review-summary">
+                <div className="task-review-summary__top">
+                  <span
+                    className={`task-review-status-pill ${reviewStatusView.className}`}
+                  >
+                    <i className={reviewStatusView.icon}></i>
+                    {reviewStatusView.label}
                   </span>
-                ) : null}
+                  {isTaskApproved && canRateTask ? (
+                    <TaskRatingDropdown
+                      value={rating}
+                      saving={ratingSaving}
+                      disabled={
+                        !effectiveProjectId ||
+                        !taskId ||
+                        detailLoading ||
+                        !detailTask
+                      }
+                      onChange={updateTaskRating}
+                    />
+                  ) : isTaskApproved && rating ? (
+                    <span className="task-rating-pill">{rating}/5</span>
+                  ) : null}
+                </div>
+                <span className="task-review-summary__meta">
+                  {reviewStatusView.meta}
+                  {reviewStatusView.date ? (
+                    <>
+                      {" "}
+                      <span>{formatDateTime(reviewStatusView.date)}</span>
+                    </>
+                  ) : null}
+                </span>
               </div>
-            ) : (
+            ) : null}
+
+            {canSubmitForReview ? (
               <button
                 type="button"
-                className="btn btn-outline-primary"
+                className={`btn ${
+                  isTaskRejected ? "btn-outline-danger" : "btn-outline-primary"
+                }`}
                 onClick={handleCompleteTask}
                 disabled={taskCompleting}
               >
-                <i className="ti ti-check me-1"></i>
-                Complete Task
+                <i className="ti ti-send me-1"></i>
+                {isTaskRejected ? "Resubmit For Review" : "Submit For Review"}
               </button>
-            )}
-            {!taskCompleted ? (
+            ) : null}
+
+            {isTaskPendingReview && canReviewTask ? (
+              <div className="d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={handleApproveTask}
+                  disabled={taskReviewing}
+                >
+                  <i className="ti ti-check me-1"></i>
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => setRejectReasonOpen((value) => !value)}
+                  disabled={taskReviewing}
+                >
+                  <i className="ti ti-x me-1"></i>
+                  Reject
+                </button>
+              </div>
+            ) : null}
+
+            {!isTaskApproved ? (
               <TaskAssigneeDropdown
                 projectId={effectiveProjectId}
                 columnId={effectiveColumnId}
@@ -1264,6 +1566,44 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
           </div>
         </div>
 
+        {rejectReasonOpen ? (
+          <div className="task-review-rejection-panel">
+            <label htmlFor="task-review-rejection-note">
+              Reason for rejection
+            </label>
+            <textarea
+              id="task-review-rejection-note"
+              className="form-control"
+              rows="2"
+              placeholder="Write what needs to be fixed before approval..."
+              value={rejectReason}
+              onChange={(event) => setRejectReason(event.target.value)}
+              disabled={taskReviewing}
+            />
+            <div className="d-flex justify-content-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => {
+                  setRejectReasonOpen(false);
+                  setRejectReason("");
+                }}
+                disabled={taskReviewing}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={handleRejectTask}
+                disabled={taskReviewing}
+              >
+                Request Changes
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <ModalBody
           className="task-detail-modal__body"
           style={{
@@ -1338,6 +1678,15 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
                       {...descriptionDirectionProps}
                     />
                   </div>
+                  {isTaskRejected && taskReviewNote ? (
+                    <div className="task-review-note-alert mt-3">
+                      <div className="task-review-note-alert__title">
+                        <i className="ti ti-alert-triangle"></i>
+                        Reason for rejection
+                      </div>
+                      <p className="mb-0">{taskReviewNote}</p>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="py-3">
@@ -1542,27 +1891,6 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
                       }
                       onChange={updateTaskPriority}
                     />
-                    {canRateTask ? (
-                      <TaskRatingDropdown
-                        value={rating}
-                        saving={ratingSaving}
-                        disabled={
-                          !effectiveProjectId ||
-                          !taskId ||
-                          detailLoading ||
-                          !detailTask
-                        }
-                        onChange={updateTaskRating}
-                      />
-                    ) : rating ? (
-                      <div className="d-flex align-items-center justify-content-between px-0 w-100">
-                        <span className="d-flex align-items-center gap-2">
-                          <i className="ti ti-star fs-5"></i>
-                          Rating
-                        </span>
-                        <span className="task-rating-pill">{rating}/5</span>
-                      </div>
-                    ) : null}
                     <TaskTagsDropdown
                       projectId={effectiveProjectId}
                       taskId={taskId}

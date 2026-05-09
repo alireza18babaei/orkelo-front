@@ -8,6 +8,43 @@ const normalizeTaskPayload = (payload) => {
   return root?.task ?? root?.data?.task ?? root;
 };
 
+const reviewStateKeys = [
+  "review_status",
+  "completion_status",
+  "approval_status",
+  "task_review_status",
+  "completion_submitted_at",
+  "completion_submitted_by",
+  "reviewed_at",
+  "reviewed_by",
+  "rejection_note",
+];
+
+const hasExplicitReviewState = (task) =>
+  reviewStateKeys.some((key) =>
+    Object.prototype.hasOwnProperty.call(task || {}, key),
+  );
+
+const preserveLocalReviewState = (incomingTask, currentTask) => {
+  if (!incomingTask || !currentTask) return incomingTask;
+  if (String(incomingTask.id) !== String(currentTask.id)) return incomingTask;
+  if (hasExplicitReviewState(incomingTask) || !hasExplicitReviewState(currentTask)) {
+    return incomingTask;
+  }
+
+  const preserved = reviewStateKeys.reduce((carry, key) => {
+    if (Object.prototype.hasOwnProperty.call(currentTask, key)) {
+      carry[key] = currentTask[key];
+    }
+    return carry;
+  }, {});
+
+  return {
+    ...incomingTask,
+    ...preserved,
+  };
+};
+
 export const getTaskDetailThunk = createAsyncThunk(
   "taskDetail/get",
   async ({ projectId, taskId }, { rejectWithValue }) => {
@@ -39,6 +76,14 @@ const taskDetailSlice = createSlice({
   initialState,
   reducers: {
     clearTaskDetail: () => initialState,
+    patchTaskDetail: (state, action) => {
+      const patch = action.payload || {};
+      if (!state.task || !patch || typeof patch !== "object") return;
+      state.task = {
+        ...state.task,
+        ...patch,
+      };
+    },
   },
   extraReducers: (builder) => {
     builder.addCase(getTaskDetailThunk.pending, (state, action) => {
@@ -59,12 +104,13 @@ const taskDetailSlice = createSlice({
       if (!sameTask) state.task = null;
     });
     builder.addCase(getTaskDetailThunk.fulfilled, (state, action) => {
+      const incomingTask = action.payload?.task ?? null;
       state.status = "succeeded";
       state.projectId = action.payload?.projectId ?? null;
       state.taskId = action.payload?.taskId ?? null;
-      state.task = action.payload?.task ?? null;
+      state.task = preserveLocalReviewState(incomingTask, state.task);
 
-      state.creator = action.payload?.task?.creator ?? null;
+      state.creator = state.task?.creator ?? null;
     });
     builder.addCase(getTaskDetailThunk.rejected, (state, action) => {
       state.status = "failed";
@@ -74,5 +120,5 @@ const taskDetailSlice = createSlice({
   },
 });
 
-export const { clearTaskDetail } = taskDetailSlice.actions;
+export const { clearTaskDetail, patchTaskDetail } = taskDetailSlice.actions;
 export default taskDetailSlice.reducer;

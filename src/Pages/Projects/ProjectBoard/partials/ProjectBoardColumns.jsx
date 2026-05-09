@@ -6,7 +6,12 @@ import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import BoardColumn from "./BoardColumn";
 import BoardItem from "../../../../Components/BoardItem";
 import { formatMonthDay } from "../../../../utils/date";
-import { resolveUserAvatarUrl } from "../../../../utils/mediaUrl";
+import { resolveUserAvatarWithFallback } from "../../../../utils/mediaUrl";
+import {
+  getTaskReviewStatus,
+  isTaskApproved,
+  TASK_REVIEW_STATUS,
+} from "../../../../utils/taskReviewStatus";
 
 /* =========================
    Helpers
@@ -145,10 +150,7 @@ const getColumnTaskCount = (column) => {
   );
 };
 
-const isTaskCompleted = (task) =>
-  !!task?.is_completed ||
-  String(task?.status || "").toLowerCase() === "done" ||
-  String(task?.status || "").toLowerCase() === "completed";
+const isTaskCompleted = (task) => isTaskApproved(task);
 
 const getTaskDueValue = (task) =>
   task?.due_at ?? null;
@@ -206,14 +208,16 @@ const getTaskAssigneeObject = (task) => {
 
 const resolveTaskAssigneeAvatar = (task) => {
   const assignee = getTaskAssigneeObject(task);
+  if (!assignee) return "";
 
   const assigneeAvatarRaw = pickFirstNonEmpty([
     assignee?.avatar,
   ]);
 
-  if (!assignee) return "";
-
-  return resolveUserAvatarUrl(assigneeAvatarRaw);
+  return resolveUserAvatarWithFallback(
+    assigneeAvatarRaw,
+    assignee?.id ?? assignee?.email ?? assignee?.name ?? task?.id ?? "",
+  );
 };
 
 const TaskCard = memo(function TaskCard({
@@ -227,8 +231,10 @@ const TaskCard = memo(function TaskCard({
   enterIndex = 0,
 }) {
   if (!task) return null;
+  const reviewStatus = getTaskReviewStatus(task);
   const completed = isTaskCompleted(task);
   const checklistProgress = getTaskChecklistProgress(task);
+  const hasDueTime = Boolean(getTaskDueValue(task));
   const overdue = !completed && isTaskOverdue(task);
   const trackingActive =
     String(task?.type ?? "")
@@ -289,7 +295,11 @@ const TaskCard = memo(function TaskCard({
         {...taskDragHandleProps}
         className={`${isDragging ? "is-dragging" : ""} ${
           completed ? "task-completed" : ""
-        } ${overdue ? "task-overdue" : ""} ${
+        } ${
+          reviewStatus === TASK_REVIEW_STATUS.PENDING ? "task-review-pending" : ""
+        } ${
+          reviewStatus === TASK_REVIEW_STATUS.REJECTED ? "task-review-rejected" : ""
+        } ${hasDueTime ? "task-has-due" : ""} ${overdue ? "task-overdue" : ""} ${
           flashCompleted ? "task-completed-flash" : ""
         } ${
           enter ? "task-enter" : ""
@@ -325,6 +335,7 @@ const TaskCard = memo(function TaskCard({
         taskPriority={task.priority}
         taskRating={task.rating}
         taskUserImg={resolveTaskAssigneeAvatar(task)}
+        taskReviewStatus={reviewStatus}
         isCompleted={completed}
       />
     </div>

@@ -43,9 +43,10 @@ const BoardItem = ({
                      taskChecklistCompletedCount,
                      taskChecklistTotalCount,
                       taskTags,
-                      taskPriority,
-                      taskRating,
+                     taskPriority,
+                     taskRating,
                       taskUserImg,
+                     taskReviewStatus = 'active',
                      isCompleted = false,
                      innerRef,
                      className = '',
@@ -53,6 +54,11 @@ const BoardItem = ({
                      ...rest
                    }) => {
   const normalizedTaskUserImg = String(taskUserImg || '').trim();
+  const normalizedReviewStatus = String(taskReviewStatus || 'active')
+    .trim()
+    .toLowerCase();
+  const isPendingReview = normalizedReviewStatus === 'pending_approval';
+  const isRejectedReview = normalizedReviewStatus === 'rejected';
   const [showTaskUserImg, setShowTaskUserImg] = useState(
     Boolean(normalizedTaskUserImg)
   );
@@ -153,6 +159,8 @@ const BoardItem = ({
         className={`board-item-content position-relative ${
           isCompleted ? 'board-item-content--completed' : ''
         } ${
+          showTaskUserImg ? 'board-item-content--has-assignee-img' : ''
+        } ${
           !showPriorityCue ? 'board-item-content--without-priority' : ''
         }`}
         style={
@@ -173,14 +181,38 @@ const BoardItem = ({
           </div>
         ) : null}
 
+        {isPendingReview ? (
+          <div
+            className="box-ribbon box-right board-item-status-ribbon board-item-waiting-ribbon"
+            title="Waiting"
+            aria-label="Waiting"
+          >
+            <div className="ribbonbox ribbon-warning">
+              <span className="f-s-10">Waiting</span>
+            </div>
+          </div>
+        ) : null}
+
+        {isRejectedReview ? (
+          <div
+            className="box-ribbon box-right board-item-status-ribbon board-item-rejected-ribbon"
+            title="Rejected"
+            aria-label="Rejected"
+          >
+            <div className="ribbonbox ribbon-danger">
+              <span className="f-s-10">Rejected</span>
+            </div>
+          </div>
+        ) : null}
+
         {isCompleted ? (
           <div
-            className="box-ribbon box-right board-item-completed-ribbon"
-            title="Completed"
-            aria-label="Completed"
+            className="box-ribbon box-right board-item-status-ribbon board-item-completed-ribbon"
+            title="Approved"
+            aria-label="Approved"
           >
             <div className="ribbonbox ribbon-success">
-              <span className="f-s-10">Completed</span>
+              <span className="f-s-10">Approved</span>
             </div>
           </div>
         ) : null}
