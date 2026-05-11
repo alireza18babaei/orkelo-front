@@ -193,6 +193,12 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
             className: 'sidebar-icon-submenu-item',
           },
           {
+            name: 'User Performance Analyze',
+            path: '/user-performance-analyze',
+            iconClass: 'ph-duotone ph-chart-line-up',
+            className: 'sidebar-icon-submenu-item',
+          },
+          {
             name: 'Manage Projects',
             path: '/manage-projects',
             iconClass: 'ph-duotone ph-folder-open',
