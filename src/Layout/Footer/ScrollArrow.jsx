@@ -1,10 +1,18 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 
 const ScrollArrow = () => {
+    const { pathname } = useLocation();
     const [scrollValue, setScrollValue] = React.useState(0);
     const [showGoTop, setShowGoTop] = React.useState(false);
+    const hiddenOnRoute = pathname === '/requests' || pathname === '/requests-management';
 
     React.useEffect(() => {
+        if (hiddenOnRoute) {
+            setShowGoTop(false);
+            return undefined;
+        }
+
         const handleScroll = () => {
             const pos = document.documentElement.scrollTop;
             const calcHeight = (document.documentElement.scrollHeight - document.documentElement.clientHeight);
@@ -20,7 +28,7 @@ const ScrollArrow = () => {
         return () => {
             window.removeEventListener('scroll', handleScroll);
         };
-    }, []);
+    }, [hiddenOnRoute]);
 
     const handleClick = () => {
         document.documentElement.scrollTop = 0;
@@ -30,7 +38,7 @@ const ScrollArrow = () => {
         <div
             className="go-top"
             style={{
-                display: showGoTop ? 'grid' : 'none',
+                display: !hiddenOnRoute && showGoTop ? 'grid' : 'none',
                 background: `conic-gradient( rgba(var(--primary),1) ${scrollValue}%, var(--light-gray) ${scrollValue}%)`
             }}
             onClick={handleClick}

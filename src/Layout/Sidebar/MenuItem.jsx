@@ -126,11 +126,20 @@ function MenuItem(props) {
                         link.onClick?.();
                       }}
                     >
-                      {link.name}
+                      {link.iconClass ? (
+                        <span className="sidebar-submenu-icon" aria-hidden="true">
+                          <i className={link.iconClass}></i>
+                        </span>
+                      ) : null}
+                      <span className="sidebar-project-name">{link.name}</span>
                     </Link>
                   ) : (
                     <NavLink to={link.path} title={link.name}>
-                      {link.avatarSrc ? (
+                      {link.iconClass ? (
+                        <span className="sidebar-submenu-icon" aria-hidden="true">
+                          <i className={link.iconClass}></i>
+                        </span>
+                      ) : link.avatarSrc ? (
                         <span className="sidebar-project-avatar" aria-hidden="true">
                           <img src={link.avatarSrc} alt="" />
                         </span>

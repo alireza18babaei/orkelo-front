@@ -11,6 +11,7 @@ import Profile from '../Pages/Profile';
 import MyProjects from '../Pages/Profile/MyProjects';
 import ProjectBoard from '../Pages/Projects/ProjectBoard';
 import ManageFinance from '../Pages/ManageFinance';
+import Requests from '../Pages/Requests';
 import RequireAuth from './auth/RequireAuth';
 import RequireGuest from './auth/RequireGeust';
 import UserReports from '../Pages/ManageProjects/Project/UserReports';
@@ -30,6 +31,8 @@ export const routesConfig = [
         element: <Layout />,
         children: [
           { path: '/', element: <Home /> },
+          { path: '/requests', element: <Requests variant='employee' /> },
+          { path: '/requests-management', element: <Requests variant='management' /> },
           { path: '/active-trackers', element: <ActiveTrackers /> },
           { path: '/manage-projects', element: <ManageProjects/> },
           { path: '/manage-finance', element: <ManageFinance /> },

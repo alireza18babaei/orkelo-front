@@ -15,12 +15,29 @@ import api from '../../api/axios';
 
 const HOME_ITEMS_LIMIT = 3;
 const PROJECT_SCAN_LIMIT = 6;
+const LEAVE_MANAGER_ROLES = new Set(['company_owner', 'company_supervisor']);
+
+const defaultLeaveSummary = {
+  approved_days_this_year: 0,
+  pending_requests: 0,
+  upcoming_requests: 0,
+  upcoming_leave: null,
+};
 
 const normalizeArrayPayload = (payload) => {
   const root = payload?.data ?? payload ?? [];
   const data = root?.data ?? root;
 
   return Array.isArray(data) ? data : [];
+};
+
+const normalizeLeaveSummaryPayload = (payload) => {
+  const data = payload?.data ?? payload ?? {};
+
+  return {
+    ...defaultLeaveSummary,
+    ...(data && typeof data === 'object' ? data : {}),
+  };
 };
 
 const encodePathId = (value) => encodeURIComponent(String(value));
@@ -100,6 +117,9 @@ const Home = () => {
   const dispatch = useDispatch();
 
   const user = useSelector((s) => s.auth?.user ?? null);
+  const activeCompanyRole = useSelector(
+    (s) => s.companyContext?.activeCompany?.membership?.role ?? null,
+  );
   const projects = useSelector((s) => s.projects?.items ?? []);
   const projectsLoading = useSelector((s) => s.projects?.loading ?? false);
   const {
@@ -109,6 +129,11 @@ const Home = () => {
 
   const [taskState, setTaskState] = useState({
     items: [],
+    loading: false,
+    error: null,
+  });
+  const [leaveSummaryState, setLeaveSummaryState] = useState({
+    data: defaultLeaveSummary,
     loading: false,
     error: null,
   });
@@ -169,6 +194,43 @@ const Home = () => {
     };
   }, [projects, projectsLoading]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchLeaveSummary = async () => {
+      setLeaveSummaryState((prev) => ({
+        ...prev,
+        loading: true,
+        error: null,
+      }));
+
+      try {
+        const res = await api.get('/leave-requests/summary');
+        if (!cancelled) {
+          setLeaveSummaryState({
+            data: normalizeLeaveSummaryPayload(res?.data),
+            loading: false,
+            error: null,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLeaveSummaryState({
+            data: defaultLeaveSummary,
+            loading: false,
+            error: err,
+          });
+        }
+      }
+    };
+
+    fetchLeaveSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const todayLabel = useMemo(
     () =>
       new Intl.DateTimeFormat('en-US', {
@@ -204,6 +266,12 @@ const Home = () => {
   );
 
   const userName = String(user?.name || 'there').trim() || 'there';
+  const companyRole = String(
+    activeCompanyRole ?? user?.company_role ?? user?.user_type ?? '',
+  ).trim().toLowerCase();
+  const leaveRequestsPath = LEAVE_MANAGER_ROLES.has(companyRole)
+    ? '/requests-management'
+    : '/requests';
 
   const handleNavigationClick = (path) => {
     if (!path) return;
@@ -331,8 +399,62 @@ const Home = () => {
 
         <aside
           className='home-dashboard__notifications'
-          aria-label='Projects'
+          aria-label='Leave summary and projects'
         >
+          <HomePanel title='Leave Summary'>
+            {leaveSummaryState.loading ? (
+              <div className='home-list__item'>
+                <span className='home-list__title'>Loading leave summary...</span>
+              </div>
+            ) : leaveSummaryState.error ? (
+              <div className='home-list__item'>
+                <span className='home-list__title'>
+                  {leaveSummaryState.error?.message ||
+                    'Failed to load leave summary.'}
+                </span>
+              </div>
+            ) : (
+              <div className='leave-summary'>
+                <div className='leave-summary__grid'>
+                  <div className='leave-summary__metric'>
+                    <span>Pending</span>
+                    <strong>{leaveSummaryState.data.pending_requests}</strong>
+                    <small>requests</small>
+                  </div>
+                  <div className='leave-summary__metric'>
+                    <span>Upcoming</span>
+                    <strong>{leaveSummaryState.data.upcoming_requests}</strong>
+                    <small>requests</small>
+                  </div>
+                  <div className='leave-summary__metric'>
+                    <span>Approved</span>
+                    <strong>{leaveSummaryState.data.approved_days_this_year}</strong>
+                    <small>days this year</small>
+                  </div>
+                </div>
+
+                <div className='leave-summary__next'>
+                  <span>Upcoming leave</span>
+                  <strong>
+                    {leaveSummaryState.data.upcoming_leave
+                      ? formatFullDate(
+                          leaveSummaryState.data.upcoming_leave.start_at,
+                        )
+                      : 'No upcoming leave'}
+                  </strong>
+                </div>
+
+                <button
+                  type='button'
+                  className='leave-summary__action'
+                  onClick={() => handleNavigationClick(leaveRequestsPath)}
+                >
+                  Open requests
+                </button>
+              </div>
+            )}
+          </HomePanel>
+
           <HomePanel title='Projects'>
             <ul className='home-list'>
               {projectsLoading ? (

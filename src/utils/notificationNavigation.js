@@ -25,6 +25,13 @@ export const resolveNotificationTarget = (notification) => {
       ? properties.activity_properties
       : {};
 
+  if (typeof properties?.path === "string" && properties.path.trim()) {
+    return {
+      path: properties.path,
+      label: "Open",
+    };
+  }
+
   // Prefer resource relations from the backend response, then fall back to persisted properties.
   const projectId = pickId(
     notification?.project?.id,

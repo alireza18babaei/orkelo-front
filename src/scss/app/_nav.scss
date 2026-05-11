@@ -237,6 +237,50 @@ nav {
                                 }
                             }
 
+                            &.sidebar-icon-submenu-item {
+                                padding: 0.15rem 0.35rem 0.15rem 1rem;
+
+                                a {
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 0.55rem;
+                                    min-height: 32px;
+                                    color: inherit;
+
+                                    &::before {
+                                        display: none;
+                                    }
+
+                                    .sidebar-submenu-icon {
+                                        width: 24px;
+                                        height: 24px;
+                                        flex: 0 0 24px;
+                                        border-radius: 6px;
+                                        display: inline-flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        background: rgba(var(--primary), 0.1);
+                                        color: rgba(var(--primary), 1);
+                                        font-size: 1rem;
+                                    }
+
+                                    .sidebar-project-name {
+                                        min-width: 0;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                    }
+                                }
+
+                                &.active {
+                                    a {
+                                        .sidebar-submenu-icon {
+                                            background: rgba(var(--primary), 1);
+                                            color: var(--white);
+                                        }
+                                    }
+                                }
+                            }
+
                             &.project-submenu-item {
                                 a {
                                     display: flex;

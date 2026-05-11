@@ -25,12 +25,12 @@ import {
 import { createProjectThunk } from '../../store/projects/projectsSlice';
 import { resolvePublicMediaUrl } from '../../utils/mediaUrl';
 import { toastError, toastSuccess } from '../../utils/sweetAlert';
-import {
-  fileManagementCanViewSelector,
-} from '../../store/FileManager/access/access.selector';
-import { probeFileManagementSectionAccess } from '../../store/FileManager/access/access.thunk';
 
 const DEFAULT_CREATE_PROJECT_VISIBILITY = 'private';
+const COMPANY_MANAGEMENT_ROLES = new Set([
+  'company_owner',
+  'company_supervisor',
+]);
 
 export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   const dispatch = useDispatch();
@@ -41,10 +41,6 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   );
   const projects = useSelector((s) => s.projects.items);
   const loading = useSelector((s) => s.projects.loading);
-  const activeCompanyId = useSelector(
-    (s) => s.companyContext?.activeCompanyId ?? s.companyContext?.activeCompany?.id ?? null,
-  );
-  const canViewFinanceCenter = useSelector(fileManagementCanViewSelector);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -73,17 +69,11 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   const companyRole = String(
     activeCompanyRole ?? user?.company_role ?? user?.user_type ?? ''
   ).trim().toLowerCase();
+  const canSeeCompanyManagement = COMPANY_MANAGEMENT_ROLES.has(companyRole);
 
   useEffect(() => {
     register('visibility');
   }, [register]);
-
-  useEffect(() => {
-    if (!user?.id || !activeCompanyId) return;
-    if (companyRole === 'company_owner') return;
-
-    dispatch(probeFileManagementSectionAccess());
-  }, [activeCompanyId, companyRole, dispatch, user?.id]);
 
   const buildFormValues = () => ({
     name: '',
@@ -167,26 +157,6 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     ];
   }, [projectLinks]);
 
-  const hasProjectManagerRole = Array.isArray(user?.project_roles)
-    ? user.project_roles.some(
-        (item) =>
-          String(item?.role ?? '').trim().toLowerCase() === 'project_manager'
-      )
-    : false;
-
-  const canSeeManageReports =
-    companyRole === 'company_owner' ||
-    companyRole === 'company_supervisor' ||
-    hasProjectManagerRole;
-
-  const canSeeActiveTrackers =
-    companyRole === 'company_owner' ||
-    companyRole === 'company_supervisor' ||
-    hasProjectManagerRole;
-
-  const canSeeFinanceSection =
-    companyRole === 'company_owner' || canViewFinanceCenter;
-
   const sidebarConfig = useMemo(() => {
     const items = [
       {
@@ -209,33 +179,53 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
       },
     ];
 
-    if (canSeeActiveTrackers) {
+    if (canSeeCompanyManagement) {
       items.push({
-        type: 'single',
-        name: 'Active Trackers',
-        path: '/active-trackers',
-        iconClass: 'ph-duotone ph-timer',
-        collapseId: 'active-trackers-collapse',
+        type: 'dropdown',
+        name: 'Company Management',
+        iconClass: 'ph-duotone ph-buildings',
+        collapseId: 'company-management-collapse',
+        children: [
+          {
+            name: 'Requests Management',
+            path: '/requests-management',
+            iconClass: 'ph-duotone ph-clipboard-text',
+            className: 'sidebar-icon-submenu-item',
+          },
+          {
+            name: 'Manage Projects',
+            path: '/manage-projects',
+            iconClass: 'ph-duotone ph-folder-open',
+            className: 'sidebar-icon-submenu-item',
+          },
+          {
+            name: 'Active Trackers',
+            path: '/active-trackers',
+            iconClass: 'ph-duotone ph-timer',
+            className: 'sidebar-icon-submenu-item',
+          },
+          {
+            name: 'Finance Center',
+            path: '/manage-finance',
+            iconClass: 'ph-duotone ph-wallet',
+            className: 'sidebar-icon-submenu-item',
+          },
+        ],
       });
-    }
-
-    if (canSeeManageReports) {
+    } else {
       items.push({
-        type: 'single',
-        name: 'Manage Projects',
-        path: '/manage-projects',
-        iconClass: 'ti ti-ad-2',
-        collapseId: 'reports-collapse',
-      });
-    }
-
-    if (canSeeFinanceSection) {
-      items.push({
-        type: 'single',
-        name: 'Finance Center',
-        path: '/manage-finance',
-        iconClass: 'ph-duotone ph-receipt',
-        collapseId: 'finance-collapse',
+        type: 'dropdown',
+        name: 'My Workspace',
+        iconClass: 'ph-duotone ph-user-circle',
+        collapseId: 'my-workspace-collapse',
+        children: [
+          {
+            name: 'Requests',
+            path: '/requests',
+            iconClass: 'ph-duotone ph-clipboard-text',
+            className: 'sidebar-icon-submenu-item',
+          },
+        ],
       });
     }
 
@@ -244,9 +234,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     projectLinks,
     projectMenuItems,
     loading,
-    canSeeActiveTrackers,
-    canSeeManageReports,
-    canSeeFinanceSection,
+    canSeeCompanyManagement,
   ]);
 
   return (
