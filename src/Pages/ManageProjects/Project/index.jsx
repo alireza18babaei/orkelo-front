@@ -79,7 +79,10 @@ function ProjectManager() {
   const handleDownload = async (item) => {
     try {
       setDownloadingId(item.id);
-      await dispatch(downloadProjectReport({ reportId: item.id }));
+      await dispatch(downloadProjectReport({
+        reportId: item.id,
+        fileName: item.reportName,
+      }));
     } finally {
       setDownloadingId(null);
     }
@@ -159,7 +162,7 @@ function ProjectManager() {
   const lastPage = Number(projectReportsMeta?.last_page) || 1;
 
   return (
-    <Row className='g-4'>
+    <Row className='g-4 manage-projects-page manage-projects-page--detail'>
       <div className='d-flex align-items-center justify-content-between'>
         <h2 className='text-primary'>{projectName}</h2>
         <Button color='primary' onClick={handleGoBack}>
@@ -167,7 +170,7 @@ function ProjectManager() {
         </Button>
       </div>
       <Col md='6' lg='3'>
-        <Card className='h-100'>
+        <Card className='manage-projects-page__panel h-100'>
           <CardBody>
             <h5 className='header-title-text'>Project Members</h5>
             <p className='text-muted'>Click on the user to see their reports</p>
@@ -243,7 +246,7 @@ function ProjectManager() {
       </Col>
 
       <Col md='6' lg='9'>
-        <Card className='h-100'>
+        <Card className='manage-projects-page__panel h-100'>
           <CardHeader>
             <div className='d-flex gap-2 justify-content-between flex-sm-row flex-column'>
               <div>

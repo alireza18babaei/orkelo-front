@@ -1,4 +1,77 @@
 // Manage Projects page-specific table styles.
+.manage-projects-page {
+  --manage-projects-panel: rgba(255, 255, 255, 0.86);
+  --manage-projects-control: rgba(255, 255, 255, 0.95);
+  --manage-projects-subpanel: rgba(255, 255, 255, 0.62);
+  --manage-projects-border: rgba(31, 41, 55, 0.16);
+  --manage-projects-copy: rgba(var(--dark), 0.86);
+  --manage-projects-muted: rgba(var(--secondary), 0.94);
+}
+
+.manage-projects-page .project-app-card,
+.manage-projects-page__panel,
+.manage-projects-page__members-panel {
+  background: var(--manage-projects-panel) !important;
+  border: 1px solid var(--manage-projects-border) !important;
+}
+
+.manage-projects-page .card-header,
+.manage-projects-page .card-footer {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: var(--manage-projects-border);
+}
+
+.manage-projects-page__member-card {
+  min-width: 0;
+}
+
+.manage-projects-page__member-card .card-body {
+  min-height: 150px;
+  padding: 1rem 0.85rem;
+}
+
+.manage-projects-page__member-avatar {
+  height: 70px;
+  width: 70px;
+}
+
+.manage-projects-page__member-card p {
+  max-width: 100%;
+}
+
+.manage-projects-page .table {
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: rgba(var(--primary), 0.05);
+}
+
+.manage-projects-page .table th {
+  background: rgba(248, 250, 252, 0.62);
+  color: var(--manage-projects-muted);
+}
+
+.manage-projects-page .table td {
+  color: var(--manage-projects-copy);
+}
+
+body.dark .manage-projects-page,
+nav.dark-sidebar ~ .app-content .manage-projects-page {
+  --manage-projects-panel: rgba(var(--light), 0.86);
+  --manage-projects-control: rgba(var(--white), 0.86);
+  --manage-projects-subpanel: rgba(var(--white), 0.42);
+  --manage-projects-border: rgba(var(--secondary), 0.14);
+  --manage-projects-copy: rgba(var(--dark), 0.86);
+  --manage-projects-muted: rgba(var(--secondary), 0.92);
+}
+
+body.dark .manage-projects-page .card-header,
+body.dark .manage-projects-page .card-footer,
+body.dark .manage-projects-page .table th,
+nav.dark-sidebar ~ .app-content .manage-projects-page .card-header,
+nav.dark-sidebar ~ .app-content .manage-projects-page .card-footer,
+nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
+  background: rgba(var(--white), 0.08);
+}
+
 .project-reports-table-wrapper {
   width: 100%;
   overflow-x: visible;

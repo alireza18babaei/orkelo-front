@@ -80,7 +80,7 @@ function ManageProjects() {
   }, [dispatch, canLoadCompanyMembers]);
 
   return (
-    <>
+    <div className='manage-projects-page'>
       <Row className='g-4'>
         <Col xs={12}>
           <h2 className='mb-0'>Manage Projects</h2>
@@ -135,7 +135,7 @@ function ManageProjects() {
       {canLoadCompanyMembers ? (
         <Row className='mt-4'>
           <Col xs={12}>
-            <div className='bg-body text-body b-r-20 p-3'>
+            <div className='manage-projects-page__members-panel bg-body text-body b-r-20 p-3'>
               <div className='text-center pt-2 mb-1'>
                 <h2>Members</h2>
                 <p>
@@ -175,11 +175,11 @@ function ManageProjects() {
                       sm={4}
                       md={3}
                       lg={2}
-                      xxl={1}
+                      xxl={2}
                       className='d-flex'
                     >
                       <Card
-                        className='w-100 h-100 hover-effect project-app-card box-shadow-10 border-0 cursor-pointer'
+                        className='manage-projects-page__member-card w-100 h-100 hover-effect project-app-card box-shadow-10 border-0 cursor-pointer'
                         onClick={() =>
                           navigate(`/manage-projects/user/${m.id}`, {
                             state: { memberName: m.name },
@@ -187,10 +187,7 @@ function ManageProjects() {
                         }
                       >
                         <CardBody className='d-flex flex-column align-items-center justify-content-center text-center'>
-                          <div
-                            className='overflow-hidden rounded-circle border mb-3'
-                            style={{ width: '70px', height: '70px' }}
-                          >
+                          <div className='manage-projects-page__member-avatar overflow-hidden rounded-circle border mb-3'>
                             {m.avatar ? (
                               <img
                                 src={resolvePublicMediaUrl(m.avatar)}
@@ -219,7 +216,7 @@ function ManageProjects() {
           </Col>
         </Row>
       ) : null}
-    </>
+    </div>
   );
 }
 

@@ -9,17 +9,17 @@ const managerRoles = new Set(['company_owner', 'company_supervisor']);
 const REQUESTS_PER_PAGE = 10;
 
 const employeeTabs = [
-  { key: 'upcoming', label: 'Upcoming', params: () => ({ from_date: todayDate() }) },
-  { key: 'active', label: 'Active', params: () => ({ status: 'approved' }) },
-  { key: 'history', label: 'History', params: () => ({ status: 'approved', to_date: todayDate() }) },
+  { key: 'upcoming', label: 'Upcoming', params: () => ({ status: 'approved', temporal_scope: 'upcoming' }) },
+  { key: 'active', label: 'Active', params: () => ({ status: 'approved', temporal_scope: 'active' }) },
+  { key: 'history', label: 'History', params: () => ({ status: 'approved', temporal_scope: 'history' }) },
   { key: 'rejected', label: 'Rejected', params: () => ({ status: 'rejected' }) },
 ];
 
 const managementTabs = [
   { key: 'pending', label: 'Pending Approvals', params: () => ({ status: 'pending' }) },
-  { key: 'approved', label: 'Active Leaves', params: () => ({ status: 'approved' }) },
-  { key: 'upcoming', label: 'Upcoming Leaves', params: () => ({ from_date: todayDate() }) },
-  { key: 'history', label: 'Leave History', params: () => ({ status: 'approved', to_date: todayDate() }) },
+  { key: 'active', label: 'Active Leaves', params: () => ({ status: 'approved', temporal_scope: 'active' }) },
+  { key: 'upcoming', label: 'Upcoming Leaves', params: () => ({ status: 'approved', temporal_scope: 'upcoming' }) },
+  { key: 'history', label: 'Leave History', params: () => ({ status: 'approved', temporal_scope: 'history' }) },
   { key: 'rejected', label: 'Rejected', params: () => ({ status: 'rejected' }) },
 ];
 
@@ -32,14 +32,12 @@ const emptyMeta = {
 
 const defaultSummary = {
   approved_days_this_year: 0,
+  approved_this_month: 0,
   pending_requests: 0,
+  rejected_this_month: 0,
   upcoming_requests: 0,
   upcoming_leave: null,
 };
-
-function todayDate() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function toDateInput(date) {
   const normalized = new Date(date);
@@ -195,9 +193,10 @@ function Requests({ variant = 'auto' }) {
   }, [isManagementView, tabs]);
 
   const loadSummary = useCallback(async () => {
-    const res = await api.get('/leave-requests/summary');
+    const params = isManagementView ? { scope: 'management' } : {};
+    const res = await api.get('/leave-requests/summary', { params });
     setSummary(normalizeSummaryPayload(res?.data));
-  }, []);
+  }, [isManagementView]);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -271,27 +270,18 @@ function Requests({ variant = 'auto' }) {
         tone: 'amber',
       },
       {
-        label: 'Upcoming Requests',
-        value: summary.upcoming_requests,
-        detail: summary.upcoming_leave
-          ? formatDateOnly(summary.upcoming_leave.start_at)
-          : 'No upcoming request',
-        icon: 'ph-duotone ph-paper-plane-tilt',
-        tone: 'cyan',
-      },
-      {
-        label: 'Upcoming Leave',
-        value: summary.upcoming_leave ? formatDateOnly(summary.upcoming_leave.start_at) : '-',
-        detail: summary.upcoming_leave?.reason || 'No upcoming leave',
-        icon: 'ph-duotone ph-calendar-check',
-        tone: 'blue',
-      },
-      {
-        label: 'Approved This Year',
-        value: `${summary.approved_days_this_year} days`,
-        detail: 'Total approved',
+        label: 'Approved This Month',
+        value: summary.approved_this_month,
+        detail: 'Approved requests',
         icon: 'ph-duotone ph-check-circle',
         tone: 'green',
+      },
+      {
+        label: 'Rejected This Month',
+        value: summary.rejected_this_month,
+        detail: 'Rejected requests',
+        icon: 'ph-duotone ph-x-circle',
+        tone: 'red',
       },
     ],
     [isManagementView, summary],
@@ -401,7 +391,7 @@ function Requests({ variant = 'auto' }) {
             <Col xl={isManagementView ? 8 : 9}>
               <Row className='g-3 mb-4 requests-page__metrics'>
                 {metrics.map((metric) => (
-                  <Col key={metric.label} xs={12} md={6} xxl={3}>
+                  <Col key={metric.label} xs={12} md={4}>
                     <div className='requests-page__metric'>
                       <span
                         className={`requests-page__metric-icon is-${metric.tone}`}
@@ -662,6 +652,7 @@ function Requests({ variant = 'auto' }) {
                         <option>Family event</option>
                         <option>Doctor appointment</option>
                         <option>Vacation</option>
+                        <option>Other</option>
                       </Form.Select>
                     </Form.Group>
 

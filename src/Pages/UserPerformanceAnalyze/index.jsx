@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Form, ProgressBar, Row, Table } from 'react-bootstrap';
+import Flatpickr from 'react-flatpickr';
+import { useSelector } from 'react-redux';
 import api from '../../api/axios';
 import { resolvePublicMediaUrl } from '../../utils/mediaUrl';
 import './userPerformanceAnalyze.css';
 
-const PERIOD_OPTIONS = [
-  { value: 'this_month', label: 'This Month' },
-  { value: 'last_month', label: 'Last Month' },
-  { value: 'last_30_days', label: 'Last 30 Days' },
-  { value: 'this_year', label: 'This Year' },
-];
+const COMPANY_MANAGEMENT_ROLES = new Set(['company_owner', 'company_supervisor']);
+const WORK_DAY_MINUTES = 480;
+const DISPLAY_DAY_MINUTES = 1440;
+
+function getDefaultDateRange() {
+  const now = new Date();
+  return [
+    new Date(now.getFullYear(), now.getMonth(), 1),
+    new Date(now.getFullYear(), now.getMonth() + 1, 0),
+  ];
+}
 
 const defaultAnalysis = {
   filters: {
@@ -21,19 +28,23 @@ const defaultAnalysis = {
     },
     selected_project_id: null,
     selected_user_id: null,
+    can_select_user: null,
     projects: [],
     users: [],
   },
   summary: {
     total_tracked_seconds: 0,
     total_tracked_label: '0m',
-    total_working_seconds: 0,
-    total_working_label: '0m',
+    total_non_tracked_tasks: 0,
     tracked_days: 0,
     non_working_days: 0,
     leave_days: 0,
+    leave_minutes: 0,
+    leave_time_label: '0 hours',
     tasks_with_highest_time_spent: 0,
+    total_tasks: 0,
     total_tasks_for_month: 0,
+    completed_tasks_in_range: 0,
     completed_tasks_for_month: 0,
     total_completed_tasks: 0,
     overdue_tasks: 0,
@@ -56,14 +67,6 @@ const metricCards = [
     detail: 'All tracked time in range',
   },
   {
-    key: 'total_working_label',
-    label: 'Total Working Hours',
-    iconClass: 'ph-duotone ph-briefcase',
-    tone: 'indigo',
-    value: (summary) => summary.total_working_label,
-    detail: 'Tracked on working days',
-  },
-  {
     key: 'tracked_days',
     label: 'Number of Tracked Days',
     iconClass: 'ph-duotone ph-calendar-check',
@@ -77,31 +80,23 @@ const metricCards = [
     iconClass: 'ph-duotone ph-coffee',
     tone: 'amber',
     value: (summary) => formatDayValue(summary.non_working_days),
-    detail: 'Workdays without tracking or leave',
+    detail: 'Calendar days; weekends and holidays included',
   },
   {
     key: 'leave_days',
-    label: 'Number of Leave Days',
+    label: 'Approved Leave Time',
     iconClass: 'ph-duotone ph-airplane-tilt',
     tone: 'violet',
-    value: (summary) => formatDayValue(summary.leave_days),
-    detail: 'Approved leave in range',
+    value: (summary) => formatLeaveTimeValue(summary),
+    detail: 'Approved leave within selected range',
   },
   {
-    key: 'total_tasks_for_month',
-    label: 'Total Tasks for the Month',
+    key: 'total_tasks',
+    label: 'Total Tasks',
     iconClass: 'ph-duotone ph-stack',
     tone: 'slate',
-    value: (summary) => numberLabel(summary.total_tasks_for_month),
+    value: (summary) => numberLabel(summary.total_tasks ?? summary.total_tasks_for_month),
     detail: 'Created during selected range',
-  },
-  {
-    key: 'completed_tasks_for_month',
-    label: 'Completed Tasks for the Month',
-    iconClass: 'ph-duotone ph-check-circle',
-    tone: 'green',
-    value: (summary) => numberLabel(summary.completed_tasks_for_month),
-    detail: 'Completed during selected range',
   },
   {
     key: 'total_completed_tasks',
@@ -139,10 +134,46 @@ function formatRating(value) {
   return rating % 1 === 0 ? String(rating) : rating.toFixed(1);
 }
 
+function normalizeRating(value) {
+  const rating = Number(value ?? 0);
+  if (!Number.isFinite(rating)) return 0;
+
+  return Math.min(5, Math.max(0, rating));
+}
+
 function formatDayValue(value) {
   const days = Number(value ?? 0) || 0;
   const label = days % 1 === 0 ? String(days) : days.toFixed(1);
   return `${label} ${days === 1 ? 'day' : 'days'}`;
+}
+
+function formatLeaveMinutes(minutesValue) {
+  const minutes = Math.max(0, Math.round(Number(minutesValue ?? 0) || 0));
+
+  if (minutes === 0) return '0 hours';
+
+  const days = Math.floor(minutes / DISPLAY_DAY_MINUTES);
+  let remainingMinutes = minutes % DISPLAY_DAY_MINUTES;
+  const hours = Math.floor(remainingMinutes / 60);
+  remainingMinutes %= 60;
+  const parts = [];
+
+  if (days > 0) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`);
+  if (hours > 0) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+  if (remainingMinutes > 0) {
+    parts.push(`${remainingMinutes} ${remainingMinutes === 1 ? 'minute' : 'minutes'}`);
+  }
+
+  return parts.join(' ');
+}
+
+function formatLeaveTimeValue(value) {
+  if (value?.leave_time_label) return value.leave_time_label;
+  if (value?.leave_minutes !== undefined && value?.leave_minutes !== null) {
+    return formatLeaveMinutes(value.leave_minutes);
+  }
+
+  return formatLeaveMinutes((Number(value?.leave_days ?? 0) || 0) * WORK_DAY_MINUTES);
 }
 
 function formatDate(value) {
@@ -154,6 +185,19 @@ function formatDate(value) {
     day: 'numeric',
     year: 'numeric',
   }).format(date);
+}
+
+function formatDateFilterValue(value) {
+  if (!value) return '';
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeArray(value) {
@@ -201,16 +245,17 @@ function UserAvatar({ user }) {
 }
 
 function StarRating({ value }) {
-  const rating = Math.round(Number(value ?? 0) || 0);
+  const rating = normalizeRating(value);
+  const label = `${formatRating(rating)}/5`;
 
   return (
-    <span className='user-performance-analyze__stars' aria-label={`${rating} out of 5`}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <i
-          key={star}
-          className={star <= rating ? 'ph-fill ph-star' : 'ph ph-star'}
-        ></i>
-      ))}
+    <span
+      className='user-performance-analyze__rating-value'
+      aria-label={`${formatRating(rating)} out of 5`}
+      title={`${formatRating(rating)} out of 5`}
+    >
+      <i className={rating > 0 ? 'ph-fill ph-star' : 'ph ph-star'} aria-hidden='true'></i>
+      <span>{label}</span>
     </span>
   );
 }
@@ -345,7 +390,7 @@ function UserPerformanceTable({ rows }) {
                 <th>Total Tracked Time</th>
                 <th>Working Hours</th>
                 <th>Tracked Days</th>
-                <th>Leave Days</th>
+                <th>Leave Time</th>
                 <th>Completed Tasks</th>
                 <th>Overdue Tasks</th>
                 <th>Tasks Rating</th>
@@ -367,7 +412,7 @@ function UserPerformanceTable({ rows }) {
                     <td>{row.total_tracked_label || '0m'}</td>
                     <td>{row.working_label || '0m'}</td>
                     <td>{numberLabel(row.tracked_days)}</td>
-                    <td>{formatDayValue(row.leave_days)}</td>
+                    <td>{formatLeaveTimeValue(row)}</td>
                     <td>{numberLabel(row.completed_tasks)}</td>
                     <td>
                       <span className={Number(row.overdue_tasks) > 0 ? 'user-performance-analyze__danger-text' : 'user-performance-analyze__success-text'}>
@@ -395,27 +440,40 @@ function UserPerformanceTable({ rows }) {
 }
 
 export default function UserPerformanceAnalyze() {
+  const user = useSelector((state) => state.auth?.user ?? null);
+  const activeCompanyRole = useSelector(
+    (state) => state.companyContext?.activeCompany?.membership?.role ?? null,
+  );
   const [analysis, setAnalysis] = useState(defaultAnalysis);
   const [filters, setFilters] = useState({
-    period: 'this_month',
+    dateRange: getDefaultDateRange(),
     projectId: '',
     userId: '',
   });
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const companyRole = String(activeCompanyRole ?? user?.company_role ?? user?.user_type ?? '')
+    .trim()
+    .toLowerCase();
+  const canManageCompany = COMPANY_MANAGEMENT_ROLES.has(companyRole);
+  const canSelectUser = Boolean(analysis.filters.can_select_user ?? canManageCompany);
 
   const loadAnalysis = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const fromDate = formatDateFilterValue(filters.dateRange[0]);
+      const toDate = formatDateFilterValue(filters.dateRange[1] ?? filters.dateRange[0]);
       const params = {
-        period: filters.period,
+        period: 'custom',
       };
 
+      if (fromDate) params.from_date = fromDate;
+      if (toDate) params.to_date = toDate;
       if (filters.projectId) params.project_id = filters.projectId;
-      if (filters.userId) params.user_id = filters.userId;
+      if (canSelectUser && filters.userId) params.user_id = filters.userId;
 
       const res = await api.get('/companies/my/user-performance-analysis', { params });
       setAnalysis(normalizeAnalysisPayload(res?.data));
@@ -425,7 +483,7 @@ export default function UserPerformanceAnalyze() {
     } finally {
       setLoading(false);
     }
-  }, [filters.period, filters.projectId, filters.userId]);
+  }, [canSelectUser, filters.dateRange, filters.projectId, filters.userId]);
 
   useEffect(() => {
     loadAnalysis();
@@ -454,20 +512,20 @@ export default function UserPerformanceAnalyze() {
             <strong>{rangeLabel}</strong>
           </div>
 
-          <Form className='user-performance-analyze__filter-grid'>
-            <Form.Group controlId='performance-period'>
-              <Form.Label>Time Range</Form.Label>
-              <Form.Select
-                value={filters.period}
-                onChange={(event) => updateFilter('period', event.target.value)}
+          <Form className={`user-performance-analyze__filter-grid ${canSelectUser ? '' : 'is-self-view'}`}>
+            <Form.Group controlId='performance-date-range'>
+              <Form.Label>Date Range</Form.Label>
+              <Flatpickr
+                className='form-control user-performance-analyze__date-range'
+                value={filters.dateRange}
+                onChange={(dates) => updateFilter('dateRange', dates)}
                 disabled={loading}
-              >
-                {PERIOD_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Form.Select>
+                options={{
+                  mode: 'range',
+                  dateFormat: 'Y-m-d',
+                }}
+                placeholder='YYYY-MM-DD to YYYY-MM-DD'
+              />
             </Form.Group>
 
             <Form.Group controlId='performance-project'>
@@ -486,21 +544,23 @@ export default function UserPerformanceAnalyze() {
               </Form.Select>
             </Form.Group>
 
-            <Form.Group controlId='performance-user'>
-              <Form.Label>User</Form.Label>
-              <Form.Select
-                value={filters.userId}
-                onChange={(event) => updateFilter('userId', event.target.value)}
-                disabled={loading}
-              >
-                <option value=''>All Users</option>
-                {analysis.filters.users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
+            {canSelectUser ? (
+              <Form.Group controlId='performance-user'>
+                <Form.Label>User</Form.Label>
+                <Form.Select
+                  value={filters.userId}
+                  onChange={(event) => updateFilter('userId', event.target.value)}
+                  disabled={loading}
+                >
+                  <option value=''>All Users</option>
+                  {analysis.filters.users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            ) : null}
 
             <Button
               type='button'

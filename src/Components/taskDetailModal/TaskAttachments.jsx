@@ -374,7 +374,7 @@ export default function TaskAttachments({
       if (projectId && taskId && attachmentId != null) {
         try {
           const res = await api.get(
-            `/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}`,
+            `/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}/download`,
             { responseType: "blob" },
           );
           const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data]);
@@ -768,6 +768,7 @@ export default function TaskAttachments({
 	            (() => {
 	              const name = getAttachmentName(previewAttachment);
 	              const href = resolveAttachmentHref(getAttachmentUrl(previewAttachment));
+	              const attachmentId = previewAttachment?.id ?? previewAttachment?.attachment_id ?? null;
 	              const isImg = isImageAttachment(previewAttachment) && !!href;
 	              const iconSrc = toPublicAsset(resolveAttachmentIcon(previewAttachment));
 	              const fallbackIconSrc = toPublicAsset("assets/images/icons/file.png");
@@ -812,7 +813,7 @@ export default function TaskAttachments({
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={!href || previewDownloading}
+                        disabled={(!href && attachmentId == null) || previewDownloading}
                         onClick={() => downloadAttachment(previewAttachment)}
                       >
                         {previewDownloading ? (

@@ -68,7 +68,10 @@ function UserReports() {
   const handleDownload = async (item) => {
     try {
       setDownloadingId(item.id);
-      await dispatch(downloadProjectReport({ reportId: item.id }));
+      await dispatch(downloadProjectReport({
+        reportId: item.id,
+        fileName: item.reportName,
+      }));
     } finally {
       setDownloadingId(null);
     }
@@ -136,7 +139,7 @@ function UserReports() {
   const lastPage = Number(projectReportsMeta?.last_page) || 1;
 
   return (
-    <div>
+    <div className="manage-projects-page manage-projects-page--reports">
       <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <h2 className="mb-0">
           <span className="text-primary text-capitalize">
@@ -148,7 +151,7 @@ function UserReports() {
         <Button onClick={handleGoBack}>Back</Button>
       </div>
 
-      <Card className="pb-3">
+      <Card className="manage-projects-page__panel pb-3">
         <Card.Header>
           <div className="d-flex gap-2 justify-content-between flex-sm-row flex-column">
             <h5 className="mb-0">All Daily Reports</h5>

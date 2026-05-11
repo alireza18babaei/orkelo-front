@@ -240,6 +240,51 @@ const AppUpdateModal = () => {
           </section>
 
           <section className="app-update-modal__details">
+            {newFeatures.length ? (
+              <div className="app-update-modal__panel">
+                <div className="app-update-modal__panel-head">
+                  <span className="app-update-modal__panel-badge text-primary bg-primary-subtle">
+                    <i className="ph-duotone ph-sparkle" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <div className="app-update-modal__panel-title">New Features</div>
+                    <div className="app-update-modal__panel-subtitle">
+                      New tools and workflows included in this release
+                    </div>
+                  </div>
+                </div>
+
+                <ul className="app-update-modal__list">
+                  {newFeatures.map((feature, index) => {
+                    const title = String(feature?.title || `Feature ${index + 1}`).trim();
+                    const description = String(feature?.description || "").trim();
+                    const icon = String(
+                      feature?.icon || "ph-duotone ph-check-circle",
+                    ).trim();
+                    const featureKey = `${title}-${index}`;
+
+                    return (
+                      <li key={featureKey} className="app-update-modal__list-item">
+                        <span className="app-update-modal__list-icon text-primary">
+                          <i className={icon} aria-hidden="true" />
+                        </span>
+                        <span className="app-update-modal__list-copy">
+                          <strong className="app-update-modal__list-title">
+                            {title}
+                          </strong>
+                          {description ? (
+                            <span className="app-update-modal__list-description">
+                              {description}
+                            </span>
+                          ) : null}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+
             {bugFixes.length ? (
               <div className="app-update-modal__panel">
                 <div className="app-update-modal__panel-head">

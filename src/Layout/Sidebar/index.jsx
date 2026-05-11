@@ -231,6 +231,18 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
             iconClass: 'ph-duotone ph-clipboard-text',
             className: 'sidebar-icon-submenu-item',
           },
+          {
+            name: 'My File Manager',
+            path: '/profile/projects',
+            iconClass: 'ph-duotone ph-folder-open',
+            className: 'sidebar-icon-submenu-item',
+          },
+          {
+            name: 'My Performance Analyze',
+            path: '/user-performance-analyze',
+            iconClass: 'ph-duotone ph-chart-line-up',
+            className: 'sidebar-icon-submenu-item',
+          },
         ],
       });
     }

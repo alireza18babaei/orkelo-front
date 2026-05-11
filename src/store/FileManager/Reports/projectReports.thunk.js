@@ -3,6 +3,23 @@ import api from '../../../api/axios';
 import { getErrorMessage } from '../../../utils/getError';
 import { normalizedProjectReport } from './projectReports.utils';
 
+const parseDownloadFileName = (contentDisposition) => {
+  const raw = String(contentDisposition || '');
+  if (!raw) return '';
+
+  const utf8Match = raw.match(/filename\*\s*=\s*([^']*)''([^;]+)/i);
+  if (utf8Match?.[2]) {
+    try {
+      return decodeURIComponent(utf8Match[2].trim());
+    } catch {
+      return utf8Match[2].trim();
+    }
+  }
+
+  const plainMatch = raw.match(/filename\s*=\s*("?)([^";]+)\1/i);
+  return plainMatch?.[2]?.trim() || '';
+};
+
 export const getProjectReports = createAsyncThunk(
   'get/projectReports',
   async ({ projectId, page = 1 }, { rejectWithValue }) => {
@@ -28,7 +45,7 @@ export const getProjectReports = createAsyncThunk(
 
 export const downloadProjectReport = createAsyncThunk(
   'download/projectReports',
-  async ({ reportId }, { rejectWithValue }) => {
+  async ({ reportId, fileName }, { rejectWithValue }) => {
     try {
       const res = await api.get(
         `/file-management/reports/${reportId}/download`,
@@ -40,28 +57,17 @@ export const downloadProjectReport = createAsyncThunk(
       const contentType =
         res.headers['content-type'] || 'application/octet-stream';
       const contentDisposition = res.headers['content-disposition'];
-
-      let fileName = 'report';
-
-      if (contentDisposition) {
-        const utf8Match = contentDisposition.match(
-          /filename\*=UTF-8''([^;]+)/i,
-        );
-        const normalMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-
-        if (utf8Match?.[1]) {
-          fileName = decodeURIComponent(utf8Match[1]);
-        } else if (normalMatch?.[1]) {
-          fileName = normalMatch[1].trim();
-        }
-      }
+      const resolvedFileName =
+        parseDownloadFileName(contentDisposition) ||
+        String(fileName || '').trim() ||
+        `report-${reportId}`;
 
       const blob = new Blob([res.data], { type: contentType });
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', fileName);
+      link.setAttribute('download', resolvedFileName);
 
       document.body.appendChild(link);
       link.click();
@@ -69,7 +75,7 @@ export const downloadProjectReport = createAsyncThunk(
 
       window.URL.revokeObjectURL(url);
 
-      return { reportId, fileName };
+      return { reportId, fileName: resolvedFileName };
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
     }

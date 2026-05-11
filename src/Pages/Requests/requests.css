@@ -1,6 +1,6 @@
 .requests-page {
   --requests-surface: rgba(255, 255, 255, 0.01);
-  --requests-panel: rgba(255, 255, 255, 0.78);
+  --requests-panel: rgba(255, 255, 255, 0.86);
   --requests-control: rgba(255, 255, 255, 0.95);
   --requests-border: rgba(31, 41, 55, 0.16);
   --requests-copy: #1f2937;
@@ -115,7 +115,7 @@
   align-items: center;
   display: flex;
   gap: 0.85rem;
-  min-height: 96px;
+  min-height: 130px;
   padding: 0.75rem;
 }
 
@@ -360,7 +360,7 @@
 body.dark .requests-page,
 nav.dark-sidebar ~ .app-content .requests-page {
   --requests-surface: rgba(var(--white), 1);
-  --requests-panel: rgba(var(--light), 0.6);
+  --requests-panel: rgba(var(--light), 0.86);
   --requests-control: rgba(var(--white), 0.86);
   --requests-border: rgba(var(--secondary), 0.14);
   --requests-copy: rgba(var(--dark), 0.82);

@@ -1,114 +1,73 @@
 export const APP_UPDATES = [
   {
-    id: "2026-05-05-finance-dashboard-board-notifications-tracker-layout-and-operation-ordering-updates",
-    version: "v1.1.3",
-    releasedAt: "2026-05-05",
-    title: "Latest Update",
+    id: "2026-05-13-task-review-leave-requests-performance-analysis-and-file-download-updates",
+    version: "v1.2.0",
+    releasedAt: "2026-05-13",
+    title: "Product Update",
     summary:
-      "This release brings new Finance Center tools, better daily reports, dynamic dashboard navigation, stronger project controls, improved checklist behavior, cleaner notifications, time tracker updates, and layout refinements.",
+      "This update adds task review controls, leave request management, user performance analysis, Home summary improvements, and cleaner file download behavior.",
     newFeatures: [
       {
-        title: "Expanded Finance Center",
+        title: "Task Priority",
         description:
-          "Finance Center now supports financial operations, operation files, status review, selected-user access, counterparties, and a financial overview with 6-month and 12-month chart filters.",
-        icon: "ph-duotone ph-wallet",
+          "Tasks can now be assigned a priority so teams can identify important work faster and keep boards better organized.",
+        icon: "ph-duotone ph-flag",
       },
       {
-        title: "Operations Date Filter",
+        title: "Task Approval Workflow",
         description:
-          "Operations & Files can now be filtered by title and date range, with the selected dates kept during refresh, edit, delete, and pagination.",
-        icon: "ph-duotone ph-calendar-dots",
+          "Employers and authorized reviewers can now approve or reject completed tasks directly from the task workflow.",
+        icon: "ph-duotone ph-seal-check",
       },
       {
-        title: "Deposit And Withdrawal Counterparties",
+        title: "Task Rating Modal",
         description:
-          "Counterparties can now be used for both deposit and withdrawal operations, while deposit source remains available only for deposit records.",
-        icon: "ph-duotone ph-handshake",
+          "A dedicated rating modal was added so approved tasks can be reviewed and scored in a clear, focused step.",
+        icon: "ph-duotone ph-star",
       },
       {
-        title: "Daily Report Descriptions",
+        title: "Leave Request Management",
         description:
-          "Daily report uploads now include a description field, and long descriptions are shown with a clean preview and full-text modal.",
-        icon: "ph-duotone ph-file-text",
+          "A complete leave request section is now available for submitting, reviewing, approving, rejecting, and tracking employee leave requests.",
+        icon: "ph-duotone ph-calendar-check",
       },
       {
-        title: "Dynamic Home Dashboard",
+        title: "Leave Status Tabs",
         description:
-          "Home dashboard sections now load real task, notification, and project data with direct navigation to the related destination.",
+          "Leave requests are grouped into pending approvals, active leaves, upcoming leaves, leave history, and rejected requests for easier review.",
+        icon: "ph-duotone ph-tabs",
+      },
+      {
+        title: "Home Summary",
+        description:
+          "New summary information was added to Home so key team and company activity can be reviewed faster.",
         icon: "ph-duotone ph-house-line",
       },
       {
-        title: "Clickable Notifications",
+        title: "User Performance Analysis",
         description:
-          "Task, mention, and project notifications now open their related target directly and can be marked as seen during navigation.",
-        icon: "ph-duotone ph-bell-ringing",
-      },
-      {
-        title: "Project Manager Member Access",
-        description:
-          "Project managers can now load available company members and add them to projects they manage, while regular members remain blocked.",
-        icon: "ph-duotone ph-user-plus",
-      },
-      {
-        title: "Checklist Progress on Task Cards",
-        description:
-          "Task cards now show checklist progress such as 2/8, and the value updates after checklist changes without requiring a full board reload.",
-        icon: "ph-duotone ph-check-square",
-      },
-      {
-        title: "Automatic Checklist Completion",
-        description:
-          "Checklist state now stays aligned with task completion so completed tasks do not keep inconsistent checklist states.",
-        icon: "ph-duotone ph-list-checks",
-      },
-      {
-        title: "Compact Tracking Task Cards",
-        description:
-          "Home tracking task cards now use a compact responsive grid with Show more and Show less behavior for cleaner scanning.",
-        icon: "ph-duotone ph-timer",
-      },
-      {
-        title: "Company Balance Display",
-        description:
-          "Finance Center now shows company balance clearly, with positive and zero balances in blue and negative balances in red.",
+          "A full user performance analysis section was added with date range, project, and user filters for reviewing tracked time and task metrics.",
         icon: "ph-duotone ph-chart-line-up",
       },
       {
-        title: "Manager Active Trackers",
+        title: "Filtered Tracked Time",
         description:
-          "Authorized managers can now review active trackers with role-based visibility, search, pagination, and live running time display.",
-        icon: "ph-duotone ph-gauge",
+          "Tracked time totals now reflect the selected date range and can be narrowed by project and user.",
+        icon: "ph-duotone ph-timer",
       },
     ],
     bugFixes: [
-      "Fixed project member report filtering so member reports stay scoped to the selected project.",
-      "Fixed task creator visibility so the creator keeps access when task visibility is restricted.",
-      "Fixed unauthorized project deletion responses so denied requests return 403 instead of a server error.",
-      "Fixed project member removal menus so users only see actions they are allowed to perform.",
-      "Fixed project member role badges so Owner and Supervisor labels stay readable without overflow.",
-      "Fixed checklist drag behavior so completed items stay below active checklist items.",
-      "Fixed Home tracking task time display and removed the empty time placeholder.",
-      "Fixed attachment icon placement on expired task cards so attachment and checklist metadata align in a cleaner secondary row.",
-      "Fixed Finance Operations ordering so the newest Operated At date appears first instead of ordering by creation date.",
-      "Fixed timer expiration notifications so the timer owner is notified even when they are not watching the task.",
-      "Fixed duplicate notifications that could be sent to other users when a task timer expired.",
-      "Fixed time tracker notification noise so pause, stop, and resume actions remain in the activity log without creating unnecessary notifications.",
+      "Fixed uploaded file downloads so files now download with their original uploaded names.",
+      "Fixed tracked time calculations so selected date ranges only count time that happened inside the selected period.",
+      "Fixed performance filters so project and user selections are applied to tracked time totals.",
+      "Fixed leave request grouping so active, upcoming, history, and rejected requests match their actual status and dates.",
     ],
     improvements: [
-      "Added skeleton loading states for Manage Projects and Finance Center to make loading screens clearer.",
-      "Improved Financial Overview with total income, total outcome, net balance, pending review, and monthly chart filters.",
-      "Improved operation list pagination with a compact 5-item page layout in Finance Center.",
-      "Improved Operations & Files search with a responsive date range picker using YYYY-MM-DD dates.",
-      "Improved Finance Operations date display so the highlighted date badge stays aligned with the Operated At value.",
-      "Improved operation amount colors based on operation type and company balance color behavior based on net value.",
-      "Improved project member role visibility and removal rules across owner, supervisor, project manager, and member roles.",
-      "Improved checklist behavior so active items stay first and checklist state stays aligned after task completion.",
-      "Improved board column behavior so project columns stay scrolled to the bottom after load and board updates.",
-      "Improved dashboard navigation so project, task, and notification items open their related destination directly.",
-      "Improved sidebar logo display for expanded, collapsed, light mode, and dark mode states.",
-      "Improved timer expiration messaging with a dedicated your timer message for the timer owner and separate wording for other related users.",
-      "Reviewed project list ordering and prepared the project list flow for A-Z sorting.",
-      "Verified related frontend builds and backend time tracker tests after the update.",
+      "Improved task review flow with clearer approval, rejection, and rating states.",
+      "Improved leave request summaries with monthly approved, rejected, and pending counts.",
+      "Improved user performance reporting with clearer tracked time, tracked days, leave days, task counts, overdue tasks, and ratings.",
+      "Improved Home visibility by adding summary information for faster status review.",
+      "Improved file handling consistency across uploaded reports and attachments.",
     ],
     active: true,
   },

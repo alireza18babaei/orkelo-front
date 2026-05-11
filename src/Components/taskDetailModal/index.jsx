@@ -48,6 +48,7 @@ import TaskRatingDropdown, {
 import ChecklistTree from "./ChecklistTree";
 import TaskTimer from "./TaskTimer";
 import { restoreArchivedTasks } from "../../store/projects/projectArchivedTasksSlice";
+import { resolveUserAvatarWithFallback } from "../../utils/mediaUrl";
 import { getTextDirectionProps } from "../../utils/textDirection";
 import {
   getTaskReviewNote,
@@ -159,6 +160,29 @@ const countChecklistProgress = (items = []) =>
     { total: 0, completed: 0 },
   );
 
+const markChecklistTreeCompleted = (items = []) =>
+  (Array.isArray(items) ? items : []).map((item) => ({
+    ...item,
+    is_completed: true,
+    children: markChecklistTreeCompleted(item?.children || []),
+  }));
+
+const getTaskAssigneeList = (task) => {
+  if (Array.isArray(task?.assignees)) return task.assignees;
+  if (task?.assignee) return [task.assignee];
+  return [];
+};
+
+const getPrimaryTaskAssignee = (task) =>
+  getTaskAssigneeList(task).find(Boolean) ?? null;
+
+const getAssigneeDisplayName = (assignee) => {
+  const name = String(
+    assignee?.name ?? assignee?.full_name ?? assignee?.email ?? "",
+  ).trim();
+  return name || "Assigned user";
+};
+
 const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectMembers = [] }) => {
   const propTask = task || {};
 
@@ -260,6 +284,8 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   const [rating, setRating] = useState(normalizeTaskRating(t.rating));
   const [savedRating, setSavedRating] = useState(normalizeTaskRating(t.rating));
   const [ratingSaving, setRatingSaving] = useState(false);
+  const [approvalRatingModalOpen, setApprovalRatingModalOpen] = useState(false);
+  const [approvalRatingAssignee, setApprovalRatingAssignee] = useState(null);
   const [createdAt, setCreatedAt] = useState(t.created_at ?? null);
   const [updatedAt, setUpdatedAt] = useState(t.updated_at ?? null);
   const [checklistItems, setChecklistItems] = useState([]);
@@ -285,6 +311,8 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   const isTaskApproved = taskReviewStatus === TASK_REVIEW_STATUS.APPROVED;
   const canSubmitForReview =
     !isTaskPendingReview && !isTaskApproved && !taskCompleting;
+  const canRestoreTask =
+    (isTaskPendingReview || isTaskApproved) && !taskCompleting;
   const taskTrackers = useMemo(() => {
     const list = detailTask?.time_trackers ?? t?.time_trackers;
     return Array.isArray(list) ? list : [];
@@ -573,6 +601,11 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   useEffect(() => {
     setTrackedTotalOverrideSeconds(null);
   }, [taskId, isOpen]);
+
+  useEffect(() => {
+    setApprovalRatingModalOpen(false);
+    setApprovalRatingAssignee(null);
+  }, [taskId]);
 
   useEffect(() => {
     if (trackedTotalOverrideSeconds == null) return;
@@ -912,18 +945,18 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   const updateTaskRating = async (nextRatingValue) => {
     if (!isTaskApproved) {
       toastError("Task must be approved before rating");
-      return;
+      return false;
     }
 
     const nextRating = normalizeTaskRating(nextRatingValue);
     if (!nextRating) {
       toastError("Rating must be from 1 to 5");
-      return;
+      return false;
     }
 
     if (nextRating === savedRating) {
       setRating(nextRating);
-      return;
+      return true;
     }
 
     const previousRating = rating;
@@ -948,6 +981,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
       setSavedRating(persistedRating);
       refreshDetail();
       toastSuccess("Task rating updated");
+      return true;
     } catch (err) {
       setRating(previousRating);
       const msg =
@@ -956,6 +990,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
         err?.message ||
         "Update rating failed";
       toastError(msg);
+      return false;
     } finally {
       setRatingSaving(false);
     }
@@ -1123,7 +1158,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
 
     dispatch(
       updateTaskInColumn({
-        columnId: resolvedColumnId,
+        columnId: resolvedColumnId ?? taskColumnId,
         taskId,
         patch: reviewPatch,
       }),
@@ -1139,6 +1174,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
     setTaskReviewReviewerName(getTaskReviewReviewerName(reviewPatch));
     setTaskCompleted(nextCompleted);
     setTaskCompletedAt(nextCompleted ? deriveCompletedAt(reviewPatch) : null);
+    return reviewPatch;
   };
 
   const handleCompleteTask = async () => {
@@ -1156,6 +1192,22 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
         completion_submitted_at: submittedAt,
         completion_submitted_by: currentUserName,
       });
+      const completedChecklistItems = normalizeTree(
+        markChecklistTreeCompleted(
+          Array.isArray(updated?.checklist_items)
+            ? updated.checklist_items
+            : checklistItems,
+        ),
+      );
+      const checklistProgress = countChecklistProgress(completedChecklistItems);
+      const stoppedAt = updated.completion_submitted_at ?? submittedAt;
+      const stoppedTrackers = Array.isArray(updated?.time_trackers)
+        ? updated.time_trackers
+        : taskTrackers.map((tracker) =>
+            tracker?.stop_track == null
+              ? { ...tracker, stop_track: stoppedAt, type: "stop" }
+              : tracker,
+          );
 
       applyReviewState(
         {
@@ -1165,9 +1217,23 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
             updated.completion_submitted_at ?? submittedAt,
           completion_submitted_by:
             updated.completion_submitted_by ?? currentUserName,
+          checklist_items: completedChecklistItems,
+          checklist_items_total:
+            updated.checklist_items_total ?? checklistProgress.total,
+          checklist_items_completed_count:
+            updated.checklist_items_completed_count ?? checklistProgress.completed,
+          time_trackers: stoppedTrackers,
+          type: updated.type ?? (hasActiveTracker ? "stop" : t?.type ?? null),
         },
         TASK_REVIEW_STATUS.PENDING,
       );
+      if (completedChecklistItems.length) {
+        setChecklistItems(completedChecklistItems);
+        updateTaskCardChecklistProgress(completedChecklistItems);
+      }
+      setTrackedTotalOverrideSeconds(trackedTotalSeconds);
+      refreshDetail();
+      refreshTaskCard();
       toastSuccess("Task submitted for review");
     } catch (err) {
       toastError(err?.message || "Submit task for review failed");
@@ -1195,7 +1261,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
         status: "done",
       });
 
-      applyReviewState(
+      const reviewPatch = applyReviewState(
         {
           ...updated,
           review_status: updated.review_status ?? TASK_REVIEW_STATUS.APPROVED,
@@ -1208,6 +1274,11 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
       );
       setRejectReasonOpen(false);
       setRejectReason("");
+      const approvedAssignee = getPrimaryTaskAssignee(reviewPatch);
+      if (approvedAssignee) {
+        setApprovalRatingAssignee(approvedAssignee);
+        setApprovalRatingModalOpen(true);
+      }
       toastSuccess("Task approved");
     } catch (err) {
       toastError(err?.message || "Approve task failed");
@@ -1268,7 +1339,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
   };
 
   const handleRestoreTask = async () => {
-    if (!taskCompleted || taskCompleting) return;
+    if (!canRestoreTask) return;
     if (!effectiveProjectId || !taskId) return;
 
     try {
@@ -1302,6 +1373,10 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
         },
         TASK_REVIEW_STATUS.ACTIVE,
       );
+      setApprovalRatingModalOpen(false);
+      setApprovalRatingAssignee(null);
+      refreshDetail();
+      refreshTaskCard();
       toastSuccess("Task restored");
     } catch (err) {
       toastError(err?.message || "Restore task failed");
@@ -1397,6 +1472,25 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
       date: taskReviewReviewedAt,
     },
   }[taskReviewStatus] ?? null;
+  const approvalRatingAssigneeName = getAssigneeDisplayName(
+    approvalRatingAssignee,
+  );
+  const approvalRatingAssigneeAvatar = useMemo(
+    () =>
+      resolveUserAvatarWithFallback(
+        approvalRatingAssignee?.avatar,
+        approvalRatingAssignee?.id ??
+          approvalRatingAssignee?.email ??
+          approvalRatingAssigneeName ??
+          taskId ??
+          "",
+      ),
+    [approvalRatingAssignee, approvalRatingAssigneeName, taskId],
+  );
+  const handleApprovalRatingChange = async (nextRating) => {
+    const saved = await updateTaskRating(nextRating);
+    if (saved) setApprovalRatingModalOpen(false);
+  };
 
   return (
     <>
@@ -1535,7 +1629,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
                       destructive: false,
                       onClick: archiveTask,
                     },
-                    ...(taskCompleted
+                    ...(canRestoreTask
                       ? [
                           {
                             key: "restore",
@@ -2011,6 +2105,45 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, onDeleted, projectM
               </div>
             </div>
           )}
+        </ModalBody>
+      </Modal>
+      <Modal
+        isOpen={approvalRatingModalOpen}
+        toggle={() => setApprovalRatingModalOpen(false)}
+        centered
+        size="sm"
+        backdrop
+        className="task-approval-rating-modal-dialog byekan-font"
+      >
+        <ModalBody className="task-approval-rating-modal">
+          <button
+            type="button"
+            className="task-approval-rating-modal__close"
+            aria-label="Close"
+            onClick={() => setApprovalRatingModalOpen(false)}
+            disabled={ratingSaving}
+          >
+            <i className="ti ti-x"></i>
+          </button>
+          <img
+            className="task-approval-rating-modal__avatar"
+            src={approvalRatingAssigneeAvatar}
+            alt={approvalRatingAssigneeName}
+          />
+          <div className="task-approval-rating-modal__name">
+            {approvalRatingAssigneeName}
+          </div>
+          <TaskRatingDropdown
+            value={rating}
+            saving={ratingSaving}
+            disabled={!effectiveProjectId || !taskId}
+            onChange={handleApprovalRatingChange}
+          />
+          {ratingSaving ? (
+            <span className="task-approval-rating-modal__saving">
+              <Spinner size="sm" />
+            </span>
+          ) : null}
         </ModalBody>
       </Modal>
     </>
