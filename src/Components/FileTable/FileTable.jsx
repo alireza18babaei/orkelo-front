@@ -158,13 +158,19 @@ const FileTable = ({ projectId, onChanged }) => {
       </CardHeader>
 
       <CardBody className='p-0'>
-        <div className='table-responsive'>
+        <div className='table-responsive daily-reports-table-wrapper'>
           <Table className='table table-bottom-border recent-table daily-reports-table align-middle table-hover mb-0'>
+            <colgroup>
+              <col className='daily-reports-table__name-col' />
+              <col className='daily-reports-table__description-col' />
+              <col className='daily-reports-table__size-col' />
+              <col className='daily-reports-table__date-col' />
+              <col className='daily-reports-table__actions-col' />
+            </colgroup>
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Description</th>
-                <th>Project</th>
                 <th>Size</th>
                 <th>Uploaded At</th>
                 <th>Actions</th>
@@ -174,7 +180,7 @@ const FileTable = ({ projectId, onChanged }) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan='6' className='text-center py-4 text-muted'>
+                  <td colSpan='5' className='text-center py-4 text-muted'>
                     <Spinner size='sm' color='primary' className='me-2' />
                     Loading reports...
                   </td>
@@ -193,7 +199,12 @@ const FileTable = ({ projectId, onChanged }) => {
                             className='w-20 h-20'
                             alt='file-icon'
                           />
-                          <span className='table-text'>{item.originalName}</span>
+                          <span
+                            className='table-text daily-reports-table__name'
+                            title={item.originalName}
+                          >
+                            {item.originalName}
+                          </span>
                         </div>
                       </td>
                       <td>
@@ -204,19 +215,26 @@ const FileTable = ({ projectId, onChanged }) => {
                           {item.description || '-'}
                         </span>
                       </td>
-                      <td>{item.project?.name || '-'}</td>
                       <td>{formatBytes(item.size)}</td>
                       <td>{formatDateTime(item.createdAt)}</td>
                       <td>
-                        <div className='d-flex gap-2'>
+                        <div className='daily-reports-table__actions'>
                           <Button
                             size='sm'
                             color='primary'
                             outline
+                            className='daily-reports-table__action-btn'
                             onClick={() => handleDownload(item)}
                             disabled={downloadBusy}
+                            title='Download'
+                            aria-label={`Download ${item.originalName || 'report'}`}
                           >
-                            {downloadBusy ? 'Downloading...' : 'Download'}
+                            {downloadBusy ? (
+                              <Spinner size='sm' />
+                            ) : (
+                              <i className='ph ph-download-simple' aria-hidden='true' />
+                            )}
+                            <span className='visually-hidden'>Download</span>
                           </Button>
 
                           {item.canEdit ? (
@@ -224,10 +242,18 @@ const FileTable = ({ projectId, onChanged }) => {
                               size='sm'
                               color='danger'
                               outline
+                              className='daily-reports-table__action-btn'
                               onClick={() => handleDelete(item)}
                               disabled={deleteBusy}
+                              title='Delete'
+                              aria-label={`Delete ${item.originalName || 'report'}`}
                             >
-                              {deleteBusy ? 'Deleting...' : 'Delete'}
+                              {deleteBusy ? (
+                                <Spinner size='sm' />
+                              ) : (
+                                <i className='ph ph-trash-simple' aria-hidden='true' />
+                              )}
+                              <span className='visually-hidden'>Delete</span>
                             </Button>
                           ) : null}
                         </div>
@@ -237,7 +263,7 @@ const FileTable = ({ projectId, onChanged }) => {
                 })
               ) : (
                 <tr>
-                  <td colSpan='6' className='text-center py-4 text-muted'>
+                  <td colSpan='5' className='text-center py-4 text-muted'>
                     No reports found.
                   </td>
                 </tr>

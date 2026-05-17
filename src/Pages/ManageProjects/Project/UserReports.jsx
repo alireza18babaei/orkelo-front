@@ -165,8 +165,17 @@ function UserReports() {
         </Card.Header>
 
         <Card.Body className="p-0">
-          <div className="table-responsive">
-            <Table className="table table-bottom-border recent-table align-middle table-hover mb-0">
+          <div className="table-responsive manage-user-reports-table-wrapper">
+            <Table className="table table-bottom-border recent-table manage-user-reports-table align-middle table-hover mb-0">
+              <colgroup>
+                <col className="manage-user-reports-table__name-col" />
+                <col className="manage-user-reports-table__description-col" />
+                <col className="manage-user-reports-table__project-col" />
+                <col className="manage-user-reports-table__size-col" />
+                <col className="manage-user-reports-table__date-col" />
+                <col className="manage-user-reports-table__actions-col" />
+              </colgroup>
+
               <thead>
                 <tr>
                   <th>Name</th>
@@ -189,37 +198,56 @@ function UserReports() {
                     return (
                       <tr key={item.id}>
                         <td>
-                          <div className="d-flex align-items-center gap-2">
+                          <div className="manage-user-reports-table__file">
                             <img
                               src={getReportFileIcon(item.reportName)}
                               className="w-20 h-20"
                               alt="file-icon"
                             />
-                            <span className="table-text">{item.reportName}</span>
+                            <span className="manage-user-reports-table__text">{item.reportName}</span>
                           </div>
                         </td>
 
                         <td>
                           <span
-                            className="daily-reports-table__description"
+                            className="manage-user-reports-table__description"
                             title={item.description || ''}
                           >
                             {item.description || '-'}
                           </span>
                         </td>
-                        <td>{item.projectName || '-'}</td>
-                        <td>{formatBytes(item.reportSize)}</td>
-                        <td>{formatFullDate(item.createdAt)}</td>
+                        <td>
+                          <span className="manage-user-reports-table__text">
+                            {item.projectName || '-'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="manage-user-reports-table__text">
+                            {formatBytes(item.reportSize)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="manage-user-reports-table__date">
+                            {formatFullDate(item.createdAt)}
+                          </span>
+                        </td>
 
                         <td>
-                          <div className="d-flex gap-2 flex-wrap">
+                          <div className="manage-user-reports-table__actions">
                             <Button
                               size="sm"
                               variant="outline-primary"
+                              className="manage-user-reports-table__download"
+                              title={isDownloading ? 'Downloading report' : 'Download report'}
+                              aria-label={isDownloading ? 'Downloading report' : 'Download report'}
                               onClick={() => handleDownload(item)}
                               disabled={isDownloading || isDeleting}
                             >
-                              {isDownloading ? 'Downloading...' : 'Download'}
+                              {isDownloading ? (
+                                <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                              ) : (
+                                <i className="ti ti-download" aria-hidden="true" />
+                              )}
                             </Button>
 {/* 
                             <Button

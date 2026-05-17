@@ -362,13 +362,17 @@ function ProjectManager() {
                                   size='sm'
                                   color='primary'
                                   outline
+                                  title={isDownloading ? 'Downloading report' : 'Download report'}
+                                  aria-label={isDownloading ? 'Downloading report' : 'Download report'}
                                   onClick={() => handleDownload(item)}
                                   disabled={isDownloading || isDeleting}
                                   className='project-reports-table__download'
                                 >
-                                  {isDownloading
-                                    ? 'Downloading...'
-                                    : 'Download'}
+                                  {isDownloading ? (
+                                    <span className='spinner-border spinner-border-sm' aria-hidden='true' />
+                                  ) : (
+                                    <i className='ti ti-download' aria-hidden='true' />
+                                  )}
                                 </Button>
 
                                 {/* Legacy dropdown actions are kept disabled for possible future multi-action support. */}

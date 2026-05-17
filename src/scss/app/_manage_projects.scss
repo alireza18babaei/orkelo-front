@@ -110,27 +110,27 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
 }
 
 .project-reports-table__name-col {
-  width: 22%;
+  width: 24%;
 }
 
 .project-reports-table__file-col {
-  width: 18%;
+  width: 20%;
 }
 
 .project-reports-table__description-col {
-  width: 22%;
+  width: 18%;
 }
 
 .project-reports-table__size-col {
-  width: 6%;
+  width: 8%;
 }
 
 .project-reports-table__date-col {
-  width: 16%;
+  width: 20%;
 }
 
 .project-reports-table__actions-col {
-  width: 16%;
+  width: 10%;
 }
 
 .project-reports-table__user {
@@ -174,7 +174,17 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
 
 .project-reports-table__description {
   color: rgba(var(--secondary), 0.95);
+  display: -webkit-box;
+  line-height: 1.45;
   max-width: 100%;
+  max-height: 2.9em;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .project-reports-table__actions {
@@ -186,11 +196,25 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
 }
 
 .project-reports-table__download {
-  min-width: 84px;
-  padding: 0.28rem 0.55rem;
-  font-size: 12px;
-  line-height: 1.25;
-  white-space: nowrap;
+  width: 32px;
+  height: 30px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 0 !important;
+  line-height: 1;
+
+  i {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .spinner-border {
+    width: 14px;
+    height: 14px;
+    border-width: 0.12em;
+  }
 }
 
 @media (max-width: 1199.98px) {
@@ -199,6 +223,145 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
   }
 
   .project-reports-table {
+    min-width: 960px;
+  }
+}
+
+.manage-user-reports-table-wrapper {
+  width: 100%;
+  overflow-x: visible;
+}
+
+.manage-user-reports-table {
+  table-layout: fixed;
+  width: 100%;
+
+  &.recent-table {
+    thead {
+      tr {
+        th:nth-child(1),
+        th:nth-child(2),
+        th:nth-child(4),
+        th:nth-child(5) {
+          min-width: 0;
+        }
+      }
+    }
+  }
+
+  th,
+  td {
+    min-width: 0;
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+    vertical-align: middle;
+  }
+
+  thead {
+    th {
+      white-space: nowrap;
+    }
+  }
+
+  th:first-child,
+  td:first-child {
+    padding-left: 1rem !important;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 1rem !important;
+  }
+}
+
+.manage-user-reports-table__name-col {
+  width: 24%;
+}
+
+.manage-user-reports-table__description-col {
+  width: 30%;
+}
+
+.manage-user-reports-table__project-col {
+  width: 17%;
+}
+
+.manage-user-reports-table__size-col {
+  width: 6%;
+}
+
+.manage-user-reports-table__date-col {
+  width: 15%;
+}
+
+.manage-user-reports-table__actions-col {
+  width: 8%;
+}
+
+.manage-user-reports-table__file {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.manage-user-reports-table__text,
+.manage-user-reports-table__date {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manage-user-reports-table__description {
+  display: -webkit-box;
+  max-width: 100%;
+  max-height: 2.9em;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.manage-user-reports-table__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manage-user-reports-table__download {
+  width: 32px;
+  height: 30px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 0 !important;
+  line-height: 1;
+
+  i {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .spinner-border {
+    width: 14px;
+    height: 14px;
+    border-width: 0.12em;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .manage-user-reports-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .manage-user-reports-table {
     min-width: 960px;
   }
 }
