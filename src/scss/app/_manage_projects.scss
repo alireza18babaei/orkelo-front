@@ -83,6 +83,8 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
 
   th,
   td {
+    padding-right: 0.55rem;
+    padding-left: 0.55rem;
     vertical-align: middle;
   }
 
@@ -100,6 +102,11 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
       font-size: 14px;
     }
   }
+
+  th:last-child,
+  td:last-child {
+    text-align: center;
+  }
 }
 
 .project-reports-table__name-col {
@@ -111,23 +118,19 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
 }
 
 .project-reports-table__description-col {
-  width: 18%;
-}
-
-.project-reports-table__project-col {
-  width: 14%;
+  width: 22%;
 }
 
 .project-reports-table__size-col {
-  width: 8%;
+  width: 6%;
 }
 
 .project-reports-table__date-col {
-  width: 10%;
+  width: 16%;
 }
 
 .project-reports-table__actions-col {
-  width: 10%;
+  width: 16%;
 }
 
 .project-reports-table__user {
@@ -164,21 +167,30 @@ nav.dark-sidebar ~ .app-content .manage-projects-page .table th {
 
 .project-reports-table__size,
 .project-reports-table__date {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .project-reports-table__description {
   color: rgba(var(--secondary), 0.95);
+  max-width: 100%;
 }
 
 .project-reports-table__actions {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
 }
 
 .project-reports-table__download {
-  min-width: 118px;
+  min-width: 84px;
+  padding: 0.28rem 0.55rem;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 @media (max-width: 1199.98px) {

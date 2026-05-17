@@ -307,7 +307,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
         </span>
       </div>
 
-      <Scrollbar className='app-nav simplebar-scrollable-y' id='app-simple-bar'>
+      <Scrollbar className='app-nav' id='app-simple-bar'>
         <ul className='main-nav p-0 mt-2'>
           {sidebarConfig.map((config, index) => (
             <MenuItem

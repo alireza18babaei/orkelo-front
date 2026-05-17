@@ -463,6 +463,27 @@ nav.vertical-sidebar {
         height: auto;
         flex: 1 1 auto;
         min-height: 0;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+
+        .simplebar-content-wrapper {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+
+            &::-webkit-scrollbar {
+                width: 0;
+                height: 0;
+            }
+        }
+
+        .simplebar-track {
+            display: none !important;
+        }
     }
 
     .sidebar-company-switcher-wrap {
@@ -900,6 +921,14 @@ nav.vertical-sidebar {
                             margin: 0 auto;
                         }
                     }
+                }
+            }
+        }
+
+        &:not(:hover) {
+            .app-nav {
+                .main-nav {
+                    margin-bottom: 0;
                 }
             }
         }
