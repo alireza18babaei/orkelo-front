@@ -31,6 +31,9 @@ const COMPANY_MANAGEMENT_ROLES = new Set([
   'company_owner',
   'company_supervisor',
 ]);
+const PROJECT_MANAGER_ROLE = 'project_manager';
+
+const normalizeRole = (value) => String(value ?? '').trim().toLowerCase();
 
 export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   const dispatch = useDispatch();
@@ -67,11 +70,28 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   const { ref: statusRef, ...statusField } = register('status');
   const { ref: descriptionRef, ...descriptionField } = register('description');
 
-  const companyRole = String(
+  const companyRole = normalizeRole(
     activeCompanyRole ?? user?.company_role ?? user?.user_type ?? ''
-  ).trim().toLowerCase();
+  );
   const isCompanyOwner = companyRole === 'company_owner';
   const canSeeCompanyManagement = COMPANY_MANAGEMENT_ROLES.has(companyRole);
+  const canSeeProjectManagedTrackers = Boolean(
+    (Array.isArray(user?.project_roles) &&
+      user.project_roles.some(
+        (projectRole) =>
+          normalizeRole(projectRole?.role ?? projectRole?.project_role ?? projectRole) ===
+          PROJECT_MANAGER_ROLE
+      )) ||
+      (Array.isArray(projects) &&
+        projects.some(
+          (project) =>
+            normalizeRole(
+              project?.current_user_project_role ??
+                project?.project_role ??
+                project?.role
+            ) === PROJECT_MANAGER_ROLE
+        ))
+  );
   const hasFinanceCenterAccess = Boolean(
     activeCompany?.membership?.has_finance_center_access ??
       activeCompany?.membership?.hasFinanceCenterAccess
@@ -79,6 +99,8 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
   const canSeeFinanceCenter = isCompanyOwner || hasFinanceCenterAccess;
   const canSeeFinanceCenterInWorkspace =
     !canSeeCompanyManagement && canSeeFinanceCenter;
+  const canSeeActiveTrackersInWorkspace =
+    !canSeeCompanyManagement && canSeeProjectManagedTrackers;
 
   useEffect(() => {
     register('visibility');
@@ -263,6 +285,15 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
         });
       }
 
+      if (canSeeActiveTrackersInWorkspace) {
+        workspaceChildren.push({
+          name: 'Active Trackers',
+          path: '/workspace/active-trackers',
+          iconClass: 'ph-duotone ph-timer',
+          className: 'sidebar-icon-submenu-item',
+        });
+      }
+
       items.push({
         type: 'dropdown',
         name: 'My Workspace',
@@ -280,6 +311,7 @@ export default function Sidebar({ sidebarOpen, setIsSidebarOpen }) {
     canSeeCompanyManagement,
     canSeeFinanceCenter,
     canSeeFinanceCenterInWorkspace,
+    canSeeActiveTrackersInWorkspace,
   ]);
 
   return (

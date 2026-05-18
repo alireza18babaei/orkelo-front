@@ -36,6 +36,7 @@ export const routesConfig = [
           { path: '/requests-management', element: <Requests variant='management' /> },
           { path: '/user-performance-analyze', element: <UserPerformanceAnalyze /> },
           { path: '/active-trackers', element: <ActiveTrackers /> },
+          { path: '/workspace/active-trackers', element: <ActiveTrackers scope='project_manager' /> },
           { path: '/manage-projects', element: <ManageProjects/> },
           { path: '/manage-finance', element: <ManageFinance /> },
           { path: '/manage-projects/user/:userId', element: <UserReports/>},

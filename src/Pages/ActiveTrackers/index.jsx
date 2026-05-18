@@ -79,7 +79,7 @@ const normalizeTrackersResponse = (payload) => {
   };
 };
 
-export default function ActiveTrackers() {
+export default function ActiveTrackers({ scope = 'company' }) {
   const [trackers, setTrackers] = useState([]);
   const [meta, setMeta] = useState(emptyMeta);
   const [loading, setLoading] = useState(false);
@@ -121,6 +121,10 @@ export default function ActiveTrackers() {
           per_page: TRACKERS_PER_PAGE,
         };
 
+        if (scope === 'project_manager') {
+          params.scope = 'project_manager';
+        }
+
         const searchTerm = String(search ?? '').trim();
 
         // Professional note: The backend applies this term only to the visible project, task, and user names.
@@ -149,7 +153,7 @@ export default function ActiveTrackers() {
     return () => {
       cancelled = true;
     };
-  }, [page, search]);
+  }, [page, search, scope]);
 
   const paginationSummary = useMemo(() => {
     if (!meta.total) return 'No active trackers';

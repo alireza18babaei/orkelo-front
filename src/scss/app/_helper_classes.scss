@@ -5,14 +5,14 @@
     @if $name == primary {
       color: var(--font-title-color) !important;
     } @else {
-      color: rgba(#{$color}, 1) !important;
+      color: #A1A1A1;
     }
 
     &:hover {
       @if $name == primary {
         color: var(--font-title-color) !important;
       } @else {
-        color: rgba(#{$color}, 0.8) !important;
+       color: #A1A1A1;
       }
       cursor: pointer;
     }
