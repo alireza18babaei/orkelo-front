@@ -466,10 +466,11 @@ nav.dark-sidebar ~ .app-content .board-column-load-more__button:focus-visible:no
   padding: 0.35rem 0.4rem;
   border: 0;
   border-radius: 6px;
-  background: transparent;
+  background: rgba(84, 83, 83, 0.218);
   color: rgba(var(--secondary), 0.86);
   font-size: 0.75rem;
   font-weight: 600;
+  color: rgb(234, 234, 234);
 
   &.is-active {
     background: var(--white);
@@ -1935,7 +1936,10 @@ nav.dark-sidebar ~ .app-content .task-detail-modal__sidebar .dropdown-toggle {
   box-shadow: 0 16px 32px rgba(var(--dark), 0.18);
   max-height: 240px;
   overflow-y: auto;
+  background: white;
 }
+     
+
 
 .task-comment-mention-card__title {
   padding: 0.25rem 0.5rem 0.5rem;
